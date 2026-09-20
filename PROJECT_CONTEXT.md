@@ -9,17 +9,20 @@ This spec is authoritative. Where it conflicts with your habits (frameworks, npm
 ## 0. Working rules for the agent
 
 - You can find the working rules for the agent in the `AGENTS.md` file.
+- If an instruction in this spec or in `AGENTS.md` is a problem (impossible, unclear,
+  contradictory, or a better option exists), ask the user for their opinion before
+  continuing. Details are in `AGENTS.md`.
 
 ## 1. Hard constraints (from the subject)
 
 - **Server:** PHP, **standard library only**. Every function used must exist in the PHP standard library (see the allowed extensions in section 2). **No Composer packages, no PHPMailer, no framework, no ORM, no template engine.**
 - **Client:** HTML, CSS, vanilla JavaScript with **browser-native APIs only**. No JS libraries, no TypeScript, no bundler, no npm at runtime.
-- **CSS:** plain hand-written CSS. **No CSS framework** (Tailwind was dropped: its output needs recent browsers), no CSS build step, no component libs that ship JS.
+- **CSS:** plain hand-written CSS. **No CSS framework of any kind** (Tailwind was dropped because its output needs recent browsers; Bootstrap, Pure.css and the like are not used either), no CSS build step, no component libs that ship JS.
 - **Console cleanliness:** the goal is **no errors, warnings or log lines in any console**, client side (browser console) and server side (container output). Only `getUserMedia` errors on non-HTTPS are tolerated. If a startup line from an official container image cannot be silenced, it is accepted (see section 10); nothing emitted while the app runs is accepted.
 - **Security:** no plaintext passwords, no HTML/JS injection, no SQL injection, no unwanted file upload, no forged/foreign-form actions on private data.
 - **Deployment:** once the git-ignored `.env` has been created by hand, one command (`docker compose up --build`) must bring the whole site up from a fresh clone. If the database is not set up yet, it is set up automatically (section 10).
 - **Secrets:** all credentials and configuration live in a git-ignored `.env`, created by hand. **There is no `.env.example`.** No real value appears in any committed file. Never hardcode secrets.
-- **Browsers:** target Firefox >= 41 and Chrome >= 46 (subject minimum), and current versions must work too. A full compatibility check is planned (section 11). Serve on `http://localhost:8080` (`getUserMedia` works on localhost without HTTPS).
+- **Browsers:** target Firefox >= 41 and Chrome >= 46 (subject minimum), and current versions must work too. The user tests regularly with Firefox 41 and Chrome 46 in a VM, the code follows the defensive coding rules of section 11, and every issue found is logged with its workaround in `COMPATIBILITY.md`. Serve on `http://localhost:8080` (`getUserMedia` works on localhost without HTTPS).
 
 ## 2. Stack
 
@@ -29,12 +32,12 @@ This spec is authoritative. Where it conflicts with your habits (frameworks, npm
 | Images | GD, server side only (compositing, re-encoding) |
 | Database | PostgreSQL via PDO (`pdo_pgsql`), prepared statements only |
 | Web server | nginx + php-fpm |
-| Client | HTML, vanilla JS (`getUserMedia`, `fetch`, `FormData`, canvas for preview) |
+| Client | HTML, vanilla ES5-style JS (`getUserMedia`, `fetch`, `FormData`, canvas), see section 11 |
 | CSS | Plain hand-written CSS, mobile-first, flexbox layouts, no framework |
 | Email | Wrapper class (section 6): phase 1 `mail()` + msmtp, phase 2 own SMTP client |
 | Containers | docker-compose: `nginx`, `php`, `db` |
 
-**Not used, do not add:** Tailwind or any CSS framework, `.env.example`, Mailpit/MailHog or any dev mail service, PHPMailer, Composer, React/Next/Nest, TypeScript, any JS or PHP dependency.
+**Not used, do not add:** Tailwind, Bootstrap, Pure.css or any other CSS framework, `.env.example`, Mailpit/MailHog or any dev mail service, PHPMailer, Composer, React/Next/Nest, TypeScript, any JS or PHP dependency.
 
 **Allowed PHP extensions and tools** (anything else: stop and ask first):
 
@@ -57,7 +60,8 @@ camagru/
 ├── docker-compose.yml
 ├── .env                    # git-ignored, created by hand, never committed
 ├── .gitignore
-├── NOTES.md                # justification of non-obvious tools, accepted startup lines, compatibility check result
+├── NOTES.md                # justification of non-obvious tools, accepted startup lines
+├── COMPATIBILITY.md        # living log of features that caused issues on Firefox 41 / Chrome 46, with workarounds
 ├── docker/
 │   ├── nginx/default.conf
 │   └── php/{Dockerfile, php.ini, entrypoint.sh}
@@ -115,7 +119,7 @@ Rules:
   - **Side section:** thumbnails of **all the previous pictures taken by the current user** (only their own, newest first), each with a delete button.
 - **The capture button and the upload submit are disabled until an overlay is selected.**
 - If there is no webcam, permission is refused or `getUserMedia` is unavailable, a friendly message replaces the preview and the upload keeps working.
-- The webcam frame is drawn to a canvas, sent as `FormData` (`canvas.toBlob`) with the overlay **id**. Uploaded files go through the **same server pipeline**.
+- The webcam frame is drawn to a canvas, exported with `canvas.toDataURL('image/png')`, converted to a Blob and sent as `FormData` with the overlay **id** (`canvas.toBlob` is not used, see section 11). Uploaded files go through the **same server pipeline**.
 - **Compositing happens on the server** (GD): resize/scale the overlay to the base image, alpha-blend, save as PNG.
 - Users can delete **only their own** images (server-side ownership check, POST + CSRF). Deleting removes the file and DB rows (likes/comments cascade).
 
@@ -260,12 +264,29 @@ Once `.env` exists, `docker compose up --build` from a fresh clone must work, wi
 
 ## 11. Frontend notes
 
-- Editor JS uses `navigator.mediaDevices.getUserMedia`, draws the video to a `<canvas>`, sends the frame with `fetch` + `FormData`. The upload form is always visible next to the webcam. Handle refusal/no-webcam gracefully by showing a message in place of the preview (no console noise for handled cases).
+- Editor JS gets the webcam through the small wrapper described in the compatibility rules below (never by calling `getUserMedia` directly), draws the video to a `<canvas>`, sends the frame with `fetch` + `FormData`. The upload form is always visible next to the webcam. Handle refusal/no-webcam gracefully by showing a message in place of the preview (no console noise for handled cases).
 - Overlay selection enables the capture button and the upload submit. Optional live overlay preview is a bonus (server still produces the final image).
 - CSS lives in `public/assets/css/app.css`: plain hand-written CSS, semantic HTML, label all inputs, keep the layout usable at 320 px width.
 - **Favicon:** `public/favicon.ico` exists and is referenced by `<link rel="icon">` in the layout head, so the browser console never shows a 404 for it.
 
-**Compatibility check (planned).** The targets are Firefox 41 and Chrome 46. A full compatibility check of the app is done once the mandatory part and the security review are complete, before any bonus. Known risk points to verify: `navigator.mediaDevices.getUserMedia`, `canvas.toBlob`, `fetch`, `FormData`, and every CSS feature used. Until then, prefer conservative choices (flexbox layouts, no CSS grid or custom properties, simple JS syntax). If the check reveals a gap, add a small feature-detected fallback using browser-native APIs only (for example prefixed `getUserMedia`, or `toDataURL` instead of `toBlob`), asking the user before changing the design. Record the result in `NOTES.md`.
+### Compatibility: Firefox 41 and Chrome 46
+
+**How it is tested.** The user runs Firefox 41 and Chrome 46 in a VM and tests the project with them regularly: at the end of every feature, and once more in a full pass at the end (after the security review, before any bonus). The agent cannot run these browsers, so it never claims compatibility. After each feature it gives the user a short smoke-test list (pages load, narrow layout, clean console, the feature's flow) and waits for the result. Prefer a port forward so the VM sees the site as `http://localhost:8080` (a `getUserMedia` refusal on a non-localhost HTTP origin is tolerated, but the webcam path then cannot be validated).
+
+**Defensive coding rules** (a safe subset; `COMPATIBILITY.md` refines it as issues are found):
+- JS is written in ES5 style: `var` and `function`; no arrow functions, template literals, `let` or `class`, and no newer syntax (spread, destructuring, `async/await`, optional chaining).
+- Webcam access goes through one small wrapper: use `navigator.mediaDevices.getUserMedia` when it exists, otherwise the prefixed `navigator.getUserMedia` / `webkitGetUserMedia` / `mozGetUserMedia` with callbacks. If none exists, show the upload-only message.
+- Attach the stream to the `<video>` by feature detection: `srcObject`, else `mozSrcObject`, else `video.src = URL.createObjectURL(stream)`.
+- Do not use `canvas.toBlob`. Use `toDataURL('image/png')` and convert the result to a Blob with `atob`, `Uint8Array` and `Blob`, so there is a single code path.
+- CSS: flexbox layouts only; no CSS grid, no custom properties (`var()`), no flex `gap`, no `position: sticky`, no `aspect-ratio`.
+- Any other browser API, syntax or CSS feature outside this safe subset: read `COMPATIBILITY.md` first, and ask if in doubt.
+- Optional: linters (`es-check`, `eslint-plugin-compat`, `doiuse`, target `firefox 41, chrome 46`) may be run from a throwaway container outside the repo. They are never added to the project.
+
+**`COMPATIBILITY.md` (living log).** Every function, API, syntax or CSS feature we tried that caused an issue on Firefox 41 or Chrome 46 gets an entry with its workaround, so the same problem is never hit twice.
+- Columns: feature, browser(s), symptom, workaround, status, files using it. Status is `expected` (known from documentation, not yet seen in the VM), `confirmed` (reproduced in the VM) or `fixed` (workaround applied and re-tested in the VM).
+- When the user reports a compatibility problem, the agent applies the workaround and adds the entry. Entries are never deleted, only updated.
+- The agent reads the file before writing client code and reuses the workarounds.
+- The file starts with the three known risks above (`srcObject`, `getUserMedia`, `toBlob`) as `expected` entries.
 
 ## 12. Bonus (only after the mandatory part is perfect)
 
@@ -286,4 +307,6 @@ AJAXify likes/comments and editor actions; infinite pagination; live overlay pre
 - [ ] Final security review done: all items in section 9 verified (CSRF, XSS, SQLi, uploads, sessions)
 - [ ] All emails go through `Mailer`; switching `MAIL_DRIVER` is the only change needed for phase 2
 - [ ] No forbidden dependency anywhere (section 1), no CSS framework, no `.env.example`, `.env` git-ignored, no real value in any committed file
-- [ ] Compatibility check for Firefox 41 and Chrome 46 done and recorded in `NOTES.md`
+- [ ] Firefox 41 and Chrome 46 smoke-tested by the user in the VM after each feature, plus a full final pass on every page and flow
+- [ ] `COMPATIBILITY.md` up to date: every issue found has its workaround and status
+- [ ] Client code follows the defensive coding rules of section 11 (ES5-style JS, webcam wrapper, no `canvas.toBlob`, flexbox-only CSS)

@@ -5,24 +5,38 @@ Before anything else, read `PROJECT_CONTEXT.md` in full. It is authoritative and
 habits and defaults. If this file and the spec conflict, or the spec is ambiguous,
 stop and ask the user. Do not silently pick one.
 
+## When an instruction is a problem
+If any instruction in `AGENTS.md`, `PROJECT_CONTEXT.md` or `COMPATIBILITY.md` seems
+impossible to follow, unclear, contradictory, outdated, or harmful to the project (for
+example it blocks a feature, conflicts with another rule, or a clearly better option
+exists), stop and ask the user for their opinion. Do not ignore it, reinterpret it or work
+around it silently. Explain the issue in a few lines, give your suggested option(s) with
+their trade-offs, and wait for the answer. If the user decides to change the instruction,
+propose the exact new wording. Do not edit `AGENTS.md` or `PROJECT_CONTEXT.md` yourself
+unless the user asks.
+
 ## Project in short
 Camagru (école 42): a small PHP web app. Users take a webcam photo or upload one, the
 server composites an overlay with GD, and the result goes into a public gallery with
 likes and comments. Pass/fail constraints at evaluation (spec section 1): PHP standard
 library only, vanilla JS with browser-native APIs only, no Composer/npm/framework,
 no console output (browser and containers), no security leak.
-Project choice: plain hand-written CSS, no CSS framework.
+Project choice: plain hand-written CSS, no CSS framework of any kind.
 
 ## Workflow
 - Work on one feature at a time (for example: Docker + DB, then auth, then gallery,
-  then editor). After each one, summarize what you did, how you verified it, and wait
-  for the user's go-ahead before starting the next.
+  then editor). After each one, summarize what you did, how you verified it, and give the user a short Firefox 41 / Chrome 46 smoke-test
+  list for that feature (pages load, narrow layout, clean console, the feature's flow).
+  Wait for the user's go-ahead, which includes their VM results, before starting the next.
+- Browser compatibility: the user tests Firefox 41 and Chrome 46 in a VM. You cannot run
+  these browsers, so never claim a feature is compatible; ask the user to verify. When the
+  user reports a problem, fix it with a workaround and add an entry to `COMPATIBILITY.md`.
 - When all mandatory features are done, do these two steps before anything else, in this order:
   1. **Security review.** Remind the user that it is time for the final security review,
      then run it with them using the checklist in spec section 9. The mandatory part is
      not finished until it is done.
-  2. **Compatibility check** for Firefox 41 and Chrome 46 (spec section 11). Record the
-     result in `NOTES.md`.
+  2. **Full compatibility pass.** The user re-tests every page and flow in Firefox 41 and
+     Chrome 46 in the VM. Fix what fails and update `COMPATIBILITY.md`.
 - Stay in scope: no extra features, files or dependencies beyond the spec. Bonus items
   only after the mandatory part is done and validated.
 - Ask before deviating from the spec, or when a simple solution isn't possible.
@@ -50,8 +64,15 @@ notices from our own code) is never accepted.
   the "Allowed PHP extensions and tools" table of spec section 2. If you need anything
   else, stop and ask. Document every non-obvious tool (`msmtp`, `fileinfo`/`finfo`, `GD`,
   `pdo_pgsql`, `openssl`) in `NOTES.md` with a one-line justification.
-- Keep the client code compatible with the targets of spec section 11 (Firefox 41,
-  Chrome 46): prefer conservative JS and CSS features.
+- Client code follows the defensive coding rules of spec section 11 (ES5-style JS, webcam
+  wrapper, no `canvas.toBlob`, flexbox-only CSS). Before using any browser API, syntax or
+  CSS feature outside those rules, read `COMPATIBILITY.md` and reuse its workarounds.
+
+## Compatibility log (`COMPATIBILITY.md`)
+- Keep a living log of every function, API, syntax or CSS feature that caused an issue in
+  Firefox 41 or Chrome 46, with its workaround (format in spec section 11).
+- Read it before writing client code. Add or update an entry whenever the user reports a
+  compatibility problem. Never delete entries.
 
 ## Secrets
 - Only a git-ignored `.env` is used. There is no `.env.example`.
@@ -63,8 +84,8 @@ notices from our own code) is never accepted.
 - If `.env` is missing when you need to run the stack, ask the user to create it.
 
 ## Verification
-- Never claim something works without running it. If you can't test it, say so and ask
-  the user to verify.
+- Never claim something works without running it. If you can't test it (this includes
+  anything in Firefox 41 and Chrome 46), say so and ask the user to verify.
 - After each feature, check the matching items of spec section 13, including
   `docker compose logs` (see the console output policy) and the browser console.
 - `docker compose up --build` must work from a fresh clone once the user has created
