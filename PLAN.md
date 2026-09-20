@@ -2,7 +2,7 @@
 
 Ordered plan for the whole project. The agent follows this order and ticks the boxes as work advances.
 
-**Current step:** Phase 0
+**Current step:** Phase 1
 
 ## Rules for ticking
 
@@ -20,12 +20,12 @@ Ordered plan for the whole project. The agent follows this order and ticks the b
 
 ## Phase 0 — Preparation
 
-- [ ] **(you)** Repo created with `AGENTS.md`, `PROJECT_CONTEXT.md`, `PLAN.md` and `COMPATIBILITY.md` at the root
-- [ ] **(you)** `.env` created by hand with every variable listed in spec section 10 (SMTP relay details included)
-- [ ] **(you)** 4 or more overlay PNGs with an alpha channel ready
-- [ ] **(you)** Favicon ready
-- [ ] **(you)** VM with Firefox 41 and Chrome 46 ready
-- [ ] Checkpoint
+- [x] **(you)** Repo created with `AGENTS.md`, `PROJECT_CONTEXT.md`, `PLAN.md` and `COMPATIBILITY.md` at the root
+- [x] **(you)** `.env` created by hand with every variable listed in spec section 10 (SMTP relay details included)
+- [x] **(you)** 4 or more overlay PNGs with an alpha channel ready
+- [x] **(you)** Favicon ready
+- [x] **(you)** VM with Firefox 41 and Chrome 46 ready
+- [x] Checkpoint
 
 ## Phase 1 — Walking skeleton
 
