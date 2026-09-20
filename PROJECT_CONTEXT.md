@@ -12,14 +12,14 @@ This spec is authoritative. Where it conflicts with your habits (frameworks, npm
 
 ## 1. Hard constraints (from the subject)
 
-- **Server:** PHP, **standard library only**. Every function used must exist in the PHP standard library. **No Composer packages, no PHPMailer, no framework, no ORM, no template engine.**
+- **Server:** PHP, **standard library only**. Every function used must exist in the PHP standard library (see the allowed extensions in section 2). **No Composer packages, no PHPMailer, no framework, no ORM, no template engine.**
 - **Client:** HTML, CSS, vanilla JavaScript with **browser-native APIs only**. No JS libraries, no TypeScript, no bundler, no npm at runtime.
-- **CSS:** Tailwind is allowed only as plain compiled CSS (standalone CLI, no Node). **No Tailwind CDN script, no JS plugins, no component libs that ship JS.**
-- **Console cleanliness:** the app must produce **no errors, warnings or log lines in any console**, client side (browser console) and server side (container output). Only `getUserMedia` errors on non-HTTPS are tolerated.
+- **CSS:** plain hand-written CSS. **No CSS framework** (Tailwind was dropped: its output needs recent browsers), no CSS build step, no component libs that ship JS.
+- **Console cleanliness:** the goal is **no errors, warnings or log lines in any console**, client side (browser console) and server side (container output). Only `getUserMedia` errors on non-HTTPS are tolerated. If a startup line from an official container image cannot be silenced, it is accepted (see section 10); nothing emitted while the app runs is accepted.
 - **Security:** no plaintext passwords, no HTML/JS injection, no SQL injection, no unwanted file upload, no forged/foreign-form actions on private data.
-- **Deployment:** one command (`docker compose up --build`) must bring the whole site up from a fresh clone.
-- **Secrets:** all credentials live in a git-ignored `.env`. Commit only `.env.example` (blank values). Never hardcode secrets.
-- Browsers: current Firefox and Chrome. Serve on `http://localhost:8080` (`getUserMedia` works on localhost without HTTPS).
+- **Deployment:** once the git-ignored `.env` has been created by hand, one command (`docker compose up --build`) must bring the whole site up from a fresh clone. If the database is not set up yet, it is set up automatically (section 10).
+- **Secrets:** all credentials and configuration live in a git-ignored `.env`, created by hand. **There is no `.env.example`.** No real value appears in any committed file. Never hardcode secrets.
+- **Browsers:** target Firefox >= 41 and Chrome >= 46 (subject minimum), and current versions must work too. A full compatibility check is planned (section 11). Serve on `http://localhost:8080` (`getUserMedia` works on localhost without HTTPS).
 
 ## 2. Stack
 
@@ -30,71 +30,91 @@ This spec is authoritative. Where it conflicts with your habits (frameworks, npm
 | Database | PostgreSQL via PDO (`pdo_pgsql`), prepared statements only |
 | Web server | nginx + php-fpm |
 | Client | HTML, vanilla JS (`getUserMedia`, `fetch`, `FormData`, canvas for preview) |
-| CSS | Tailwind, compiled to plain CSS by the standalone CLI |
+| CSS | Plain hand-written CSS, mobile-first, flexbox layouts, no framework |
 | Email | Wrapper class (section 6): phase 1 `mail()` + msmtp, phase 2 own SMTP client |
-| Containers | docker-compose: `nginx`, `php`, `db`, one-shot `tailwind` |
+| Containers | docker-compose: `nginx`, `php`, `db` |
 
-**Not used, do not add:** Mailpit/MailHog or any dev mail service, PHPMailer, Composer, React/Next/Nest, TypeScript, any JS or PHP dependency.
+**Not used, do not add:** Tailwind or any CSS framework, `.env.example`, Mailpit/MailHog or any dev mail service, PHPMailer, Composer, React/Next/Nest, TypeScript, any JS or PHP dependency.
+
+**Allowed PHP extensions and tools** (anything else: stop and ask first):
+
+| Name | Kind | Used for |
+|---|---|---|
+| PHP core, `standard`, `SPL`, `session`, `hash`, `filter`, `json`, `pcre` | built in | autoload, sessions, hashing, validation, JSON, regex, `mail()`, sockets |
+| `gd` | bundled extension | decoding, compositing and PNG re-encoding of images |
+| `fileinfo` (`finfo`) | bundled extension | real MIME type detection of uploads |
+| `pdo` + `pdo_pgsql` | bundled extensions | database access |
+| `mbstring` | bundled extension | UTF-8 string length checks (comments) |
+| `openssl` | bundled extension | TLS for the phase-2 SMTP client (`ssl://`, STARTTLS) |
+| `msmtp` | external binary, not PHP | relays `mail()` to the SMTP server (phase 1) |
+
+Each bundled extension must be present in the php image (check with `php -m`, enable in the Dockerfile if missing).
 
 ## 3. Repository layout
 
 ```
 camagru/
 ├── docker-compose.yml
-├── .env.example            # committed, blank values
-├── .env                    # git-ignored
+├── .env                    # git-ignored, created by hand, never committed
 ├── .gitignore
+├── NOTES.md                # justification of non-obvious tools, accepted startup lines, compatibility check result
 ├── docker/
 │   ├── nginx/default.conf
-│   ├── php/{Dockerfile, php.ini, entrypoint.sh}
-│   └── postgres/init.sql   # schema, runs on first start
+│   └── php/{Dockerfile, php.ini, entrypoint.sh}
+├── db/schema.sql           # idempotent schema (CREATE ... IF NOT EXISTS)
+├── bin/setup-db.php        # CLI script run by entrypoint.sh: waits for the DB, creates what is missing
 ├── config/overlays.php     # whitelist: overlay id => filename
 ├── public/                 # the ONLY nginx web root
 │   ├── index.php           # front controller
-│   └── assets/{css/app.css (built), js/*.js, overlays/*.png}
-├── src/
-│   ├── bootstrap.php       # env, error handling, session, autoloader
-│   ├── routes.php
-│   ├── Core/               # Router, Request, Response, View, Database, Session, Csrf, Validator, Env
-│   ├── Controllers/        # Auth, Gallery, Editor, Image, Like, Comment, Account
-│   ├── Models/             # User, Image, Comment, Like, PasswordReset
-│   ├── Services/
-│   │   ├── ImageComposer.php
-│   │   └── Mail/           # Mailer (interface), MsmtpMailer, SmtpMailer, MailerFactory, MessageBuilder, AppMailer
-│   └── Views/              # layout, pages, partials, emails
-└── tailwind/input.css
+│   ├── favicon.ico
+│   └── assets/{css/app.css, js/*.js, overlays/*.png}
+└── src/
+    ├── bootstrap.php       # env, error handling, session, autoloader
+    ├── routes.php
+    ├── Core/               # Router, Request, Response, View, Database, Session, Csrf, Validator, Env
+    ├── Controllers/        # Auth, Gallery, Editor, Image, Like, Comment, Account
+    ├── Models/             # User, Image, Comment, Like, PasswordReset
+    ├── Services/
+    │   ├── ImageComposer.php
+    │   └── Mail/           # Mailer (interface), MsmtpMailer, SmtpMailer, MailerFactory, MessageBuilder, AppMailer
+    └── Views/              # layout, pages, partials, emails
 ```
 
 Rules:
 - Autoloading via `spl_autoload_register` (namespace `App\`, PSR-4-style layout). No Composer.
 - **Controllers are thin**; **Models** hold all PDO queries; **Views** contain markup only and escape via an `e()` helper. No SQL in controllers/views.
-- Only `public/` is web-exposed. `src/`, `config/`, `.env` are never reachable.
+- Only `public/` is web-exposed. `src/`, `config/`, `db/`, `bin/`, `.env` are never reachable.
 
 ## 4. Features to implement (mandatory part)
 
 ### 4.1 Common
-- Layout: header, main, footer on every page. Responsive (mobile-first with Tailwind). Header shows login/register or logout + editor + account.
+- Layout: header, main, footer on every page. Responsive (mobile-first, plain CSS media queries). Header shows login/register or logout + editor + account.
 - All forms validated **server-side** (client-side hints optional).
 - Flash messages for feedback (stored in session, escaped on output).
+- A favicon is served on every page (see section 11).
 
 ### 4.2 Users
-- **Register:** email (`FILTER_VALIDATE_EMAIL`), username (3–20 chars, `[A-Za-z0-9_]`), password (≥ 8 chars, with lowercase, uppercase and digit). Username and email unique, case-insensitive.
+- **Register:** email (`FILTER_VALIDATE_EMAIL`), username (3–20 chars, `[A-Za-z0-9_]`), password (>= 8 chars, with lowercase, uppercase and digit). Username and email unique, case-insensitive.
 - **Email confirmation:** unique link sent by email; account cannot log in until verified.
 - **Login** with username + password; generic error on failure (no user enumeration).
 - **Password reset:** request by email → single-use token link with expiry (1 h) → set new password. The response never reveals whether an email exists.
 - **Logout:** one click on every page (a POST form with CSRF token in the header, never a GET link).
-- **Account page:** change username, email, password; toggle "notify me on new comments" (default **true**). Email change should trigger re-verification.
+- **Account page:** change username, email, password (same validation as registration). An email change takes effect immediately, with no re-verification. Two notification toggles:
+  - "notify me on new comments" (default **true**);
+  - "also notify me when I comment on my own images" (default **false**).
 
 ### 4.3 Gallery (public)
 - Lists all edited images by `created_at DESC`, **paginated, 6 per page** (`?page=N`, server-side `LIMIT/OFFSET`, validate `page`).
 - Visible to everyone; **only logged-in users** can like (toggle) and comment.
-- New comment → email to the image author if their preference is on (skip when author comments on their own image). A mail failure must never break the request (log to file, continue).
+- New comment → email to the image author if their "notify me on new comments" preference is on. When the author comments on their own image, the email is sent only if they also turned on "also notify me when I comment on my own images" (default off; it has no effect while the first toggle is off). A mail failure must never break the request (log to file, continue).
 
 ### 4.4 Editor (authenticated only)
 - Unauthenticated access redirects to login with a friendly message.
-- Layout: main section (webcam preview, overlay list, capture button) + side section (thumbnails of the user's previous images, each with delete).
-- **Capture button disabled until an overlay is selected.**
-- **Fallback upload:** if no webcam, the user can upload an image instead.
+- Layout: main section + side section.
+  - **Main section:** webcam preview, overlay list, capture button, **and** a file upload form. The webcam and the upload are both always available; the user picks either one.
+  - **Side section:** thumbnails of **all the previous pictures taken by the current user** (only their own, newest first), each with a delete button.
+- **The capture button and the upload submit are disabled until an overlay is selected.**
+- If there is no webcam, permission is refused or `getUserMedia` is unavailable, a friendly message replaces the preview and the upload keeps working.
 - The webcam frame is drawn to a canvas, sent as `FormData` (`canvas.toBlob`) with the overlay **id**. Uploaded files go through the **same server pipeline**.
 - **Compositing happens on the server** (GD): resize/scale the overlay to the base image, alpha-blend, save as PNG.
 - Users can delete **only their own** images (server-side ownership check, POST + CSRF). Deleting removes the file and DB rows (likes/comments cascade).
@@ -118,7 +138,7 @@ POST /images/{id}/like       (auth, CSRF)
 POST /images/{id}/comments   (auth, CSRF)
 ```
 
-All state-changing routes are POST and require a valid CSRF token. Single front controller (`public/index.php`), nginx `try_files $uri /index.php?$query_string`.
+All state-changing routes are POST and require a valid CSRF token. Single front controller (`public/index.php`), nginx `try_files $uri /index.php?$query_string`. Static files (`/favicon.ico`, `/assets/`, `/uploads/`) are served by nginx directly.
 
 ## 6. Email architecture (critical: must be swappable)
 
@@ -140,19 +160,21 @@ interface Mailer {
 
 **msmtp setup (phase 1):**
 - Install `msmtp` and CA certificates in the php image.
-- `docker/php/entrypoint.sh` generates `/etc/msmtprc` from env vars at container start (mode `600`, owned by the php-fpm user), then `exec php-fpm`.
+- `docker/php/entrypoint.sh` generates `/etc/msmtprc` from env vars at container start (mode `600`, owned by the php-fpm user), then runs the DB setup (section 10), then `exec php-fpm`.
 - Config: `tls on`, `tls_trust_file` set to the system CA bundle, `auth on`, `from`, `user`, `password`, and `logfile` pointing to a **file** (never the console). For port 465 use `tls_starttls off`; for 587 use STARTTLS.
 - `php.ini`: `sendmail_path = "/usr/bin/msmtp -t"`.
 - No separate mail container. Delivery goes through the external SMTP relay only.
 
 ## 7. Database (PostgreSQL)
 
-`docker/postgres/init.sql` (run automatically on first start). Suggested schema:
+`db/schema.sql` holds the schema. It must be **idempotent** (`CREATE TABLE IF NOT EXISTS`, `CREATE UNIQUE INDEX IF NOT EXISTS`), because it can run on every start (section 10). Suggested schema:
 
 ```sql
 users(id SERIAL PK, username TEXT NOT NULL, email TEXT NOT NULL, password_hash TEXT NOT NULL,
       is_verified BOOLEAN NOT NULL DEFAULT false, verification_token_hash TEXT,
-      notify_on_comment BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
+      notify_on_comment BOOLEAN NOT NULL DEFAULT true,
+      notify_on_own_comment BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now());
   -- UNIQUE INDEX on lower(username) and lower(email)
 password_resets(id SERIAL PK, user_id INT REFERENCES users ON DELETE CASCADE,
       token_hash TEXT NOT NULL, expires_at TIMESTAMPTZ NOT NULL, used_at TIMESTAMPTZ);
@@ -169,7 +191,7 @@ PDO settings: `ERRMODE_EXCEPTION`, `ATTR_EMULATE_PREPARES = false`, `FETCH_ASSOC
 
 ## 8. Images
 
-- **Overlays:** at least 4 PNGs **with alpha channel** in `public/assets/overlays/`, listed in `config/overlays.php` (`id => filename`). The client sends only the **id**; the server maps it to a file (never accept paths: path-traversal protection).
+- **Overlays:** at least 4 PNGs **with alpha channel** in `public/assets/overlays/`, listed in `config/overlays.php` (`id => filename`). The client sends only the **id**; the server maps it to a file (never accept paths: path-traversal protection). A missing or unknown id is rejected, for both the webcam capture and the upload.
 - **Upload/capture pipeline (single code path):**
   1. Check size (max 5 MB) and upload errors.
   2. Detect real type with `finfo` (allow only `image/png`, `image/jpeg`) and `getimagesize`; cap dimensions.
@@ -191,41 +213,59 @@ PDO settings: `ERRMODE_EXCEPTION`, `ATTR_EMULATE_PREPARES = false`, `FETCH_ASSOC
 - **Header injection:** sanitize CR/LF in anything placed in email headers.
 - Nice to have: basic login throttling.
 
+**Final security review (mandatory, at the end of the mandatory part).** The agent reminds the user to do it, and the mandatory part is not finished until it is done. Checklist:
+- No plaintext password anywhere (DB, logs, emails).
+- No HTML/JS injection: every output escaped, including flash messages, usernames, comments, emails.
+- Uploads: size, real type, re-encoding, random filename, no PHP execution in `/uploads/`.
+- No SQL built by string concatenation; `LIMIT/OFFSET` bound too.
+- Every POST checks the CSRF token; every private route checks authentication and ownership.
+- Sessions and headers configured as above; tokens are random, hashed in DB, single-use and expiring where required.
+- No real secret in any committed file, and `.env` is git-ignored.
+- Error pages and logs leak no internal detail (paths, queries, stack traces).
+
 ## 10. Docker / environment
 
-`docker compose up --build` from a fresh clone must work, with no manual host-side permission fixes.
+Once `.env` exists, `docker compose up --build` from a fresh clone must work, with no other manual step and no manual host-side permission fixes.
 
-- `php`: built from a PHP 8.x fpm image with `gd` (jpeg, png, freetype), `pdo_pgsql`, `msmtp`, CA certificates; custom `entrypoint.sh` and `php.ini`.
+- `php`: built from a PHP 8.x fpm image with `gd` (jpeg, png, freetype), `pdo_pgsql`, `msmtp`, CA certificates; custom `entrypoint.sh` and `php.ini`. The entrypoint (1) generates `/etc/msmtprc`, (2) runs `php bin/setup-db.php`, (3) `exec php-fpm`.
 - `nginx`: static files from `public/`, PHP via fastcgi to `php`, security headers, `/uploads/` alias, only this service publishes a port (`8080:80`).
-- `db`: `postgres` official image, named volume for data, `init.sql` mounted into `/docker-entrypoint-initdb.d`, healthcheck; `php` waits for it.
-- `tailwind`: one-shot service running the standalone CLI (`tailwindcss -i tailwind/input.css -o public/assets/css/app.css --minify`); `nginx` waits for `service_completed_successfully`.
+- `db`: `postgres` official image, named volume for data, healthcheck (`pg_isready`), no published port; `php` waits for it (`depends_on` with `service_healthy`). No `init.sql` mounted: the schema is handled by the setup script below.
 - Uploads live in a **named volume** shared by `php` (rw) and `nginx` (ro).
-- **Console silence:** `display_errors=Off`, `log_errors=On` with `error_log` to a file; php-fpm access log off; nginx `access_log off` and errors to a file; quiet Postgres logging (`log_min_messages` raised). App code must still be warning-free (`error_reporting = E_ALL` in dev).
-- Central exception/error handler: log to file, show a generic 500 page.
 
-`.env.example` (blank values):
+**Automatic database setup (`bin/setup-db.php`).** If the database is not set up, the project must set it up by itself:
+1. Wait until the DB accepts connections (bounded number of retries, then fail).
+2. Check that the required tables exist.
+3. If any is missing, apply `db/schema.sql` (idempotent, so it also repairs a partial setup and is safe on every start).
+4. Never drop, truncate or overwrite existing data.
+5. Print nothing on success. On failure, log to the file and exit non-zero so the container does not serve a broken site.
 
-```
-APP_URL=http://localhost:8080
-POSTGRES_DB= POSTGRES_USER= POSTGRES_PASSWORD=
-DB_HOST=db  DB_PORT=5432  DB_NAME=  DB_USER=  DB_PASSWORD=
-MAIL_DRIVER=msmtp
-MAIL_FROM=contact@valentinmalassigne.fr
-MAIL_FROM_NAME=Camagru
-SMTP_HOST=smtp.hostinger.com
-SMTP_PORT=465
-SMTP_SECURE=ssl        # ssl | starttls
-SMTP_USER=contact@valentinmalassigne.fr
-SMTP_PASS=
-```
+**Console silence.**
+- Runtime: `display_errors=Off`, `log_errors=On` with `error_log` to a file; php-fpm access log off; nginx `access_log off` and errors to a file; Postgres logging quiet (`log_min_messages` raised). App code must still be warning-free (`error_reporting = E_ALL` in dev). Central exception/error handler: log to file, show a generic 500 page.
+- Startup: try to silence the startup output of each image (levers to try: php-fpm `log_level`, `NGINX_ENTRYPOINT_QUIET_LOGS`, Postgres `log_min_messages`). A startup line that still cannot be silenced (for example the Postgres init banner on first start) is accepted, and must be listed in `NOTES.md` with its source. Nothing emitted at request time is accepted.
 
-`.gitignore`: `.env`, uploaded files, log files, built CSS.
+**Environment variables** (`.env`, git-ignored, created by hand; names only, no value is ever written in a committed file):
+
+| Variable | Purpose | Secret |
+|---|---|---|
+| `APP_URL` | public base URL used in email links (`http://localhost:8080` locally) | no |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | database created by the postgres image | password |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | connection settings used by php (`DB_HOST` is the compose service name; `DB_NAME/USER/PASSWORD` must match `POSTGRES_*`) | password |
+| `MAIL_DRIVER` | `msmtp` or `smtp` | no |
+| `MAIL_FROM`, `MAIL_FROM_NAME` | sender address and name | no |
+| `SMTP_HOST`, `SMTP_PORT` | SMTP relay (465 with `ssl`, 587 with `starttls`) | no |
+| `SMTP_SECURE` | `ssl` or `starttls` | no |
+| `SMTP_USER`, `SMTP_PASS` | SMTP login | password |
+
+`.gitignore`: `.env`, uploaded files, log files.
 
 ## 11. Frontend notes
 
-- Editor JS uses `navigator.mediaDevices.getUserMedia`, draws the video to a `<canvas>`, sends the frame with `fetch` + `FormData`. Handle refusal/no-webcam gracefully by showing the upload fallback (no console noise for handled cases).
-- Overlay selection enables the capture button. Optional live overlay preview is a bonus (server still produces the final image).
-- Tailwind only for styling; write semantic HTML, label all inputs, keep the layout usable at 320 px width.
+- Editor JS uses `navigator.mediaDevices.getUserMedia`, draws the video to a `<canvas>`, sends the frame with `fetch` + `FormData`. The upload form is always visible next to the webcam. Handle refusal/no-webcam gracefully by showing a message in place of the preview (no console noise for handled cases).
+- Overlay selection enables the capture button and the upload submit. Optional live overlay preview is a bonus (server still produces the final image).
+- CSS lives in `public/assets/css/app.css`: plain hand-written CSS, semantic HTML, label all inputs, keep the layout usable at 320 px width.
+- **Favicon:** `public/favicon.ico` exists and is referenced by `<link rel="icon">` in the layout head, so the browser console never shows a 404 for it.
+
+**Compatibility check (planned).** The targets are Firefox 41 and Chrome 46. A full compatibility check of the app is done once the mandatory part and the security review are complete, before any bonus. Known risk points to verify: `navigator.mediaDevices.getUserMedia`, `canvas.toBlob`, `fetch`, `FormData`, and every CSS feature used. Until then, prefer conservative choices (flexbox layouts, no CSS grid or custom properties, simple JS syntax). If the check reveals a gap, add a small feature-detected fallback using browser-native APIs only (for example prefixed `getUserMedia`, or `toDataURL` instead of `toBlob`), asking the user before changing the design. Record the result in `NOTES.md`.
 
 ## 12. Bonus (only after the mandatory part is perfect)
 
@@ -233,14 +273,17 @@ AJAXify likes/comments and editor actions; infinite pagination; live overlay pre
 
 ## 13. Definition of done
 
-- [ ] Fresh clone + `.env` + `docker compose up --build` → working site
-- [ ] Zero console output (browser and containers) during normal use
+- [ ] Fresh clone + hand-made `.env` + `docker compose up --build` → working site
+- [ ] Empty database → schema created automatically; already set up → untouched, no data loss
+- [ ] Zero console output (browser and containers) during normal use; only unavoidable startup lines, each listed in `NOTES.md`
+- [ ] Favicon served, no 404 in the browser console
 - [ ] Register → email confirmation → login → reset password → change username/email/password → logout on every page
-- [ ] Editor is auth-only; capture button disabled until an overlay is chosen; upload fallback works
+- [ ] Editor is auth-only; capture button and upload disabled until an overlay is chosen; both webcam capture and file upload available and working; sidebar shows all the current user's previous pictures
 - [ ] Composition done server side with GD; alpha respected
 - [ ] Gallery public, paginated (6/page), ordered by date; like/comment for logged-in users only
-- [ ] Comment notification email sent by default, opt-out in account settings
+- [ ] Comment notification email sent by default, opt-out in account settings; self-comment notification option (default off) works
 - [ ] Users can delete only their own images
-- [ ] All items in section 9 verified (CSRF, XSS, SQLi, uploads, sessions)
+- [ ] Final security review done: all items in section 9 verified (CSRF, XSS, SQLi, uploads, sessions)
 - [ ] All emails go through `Mailer`; switching `MAIL_DRIVER` is the only change needed for phase 2
-- [ ] No forbidden dependency anywhere (section 1)
+- [ ] No forbidden dependency anywhere (section 1), no CSS framework, no `.env.example`, `.env` git-ignored, no real value in any committed file
+- [ ] Compatibility check for Firefox 41 and Chrome 46 done and recorded in `NOTES.md`
