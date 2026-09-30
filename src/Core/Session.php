@@ -81,4 +81,15 @@ class Session
         }
         session_destroy();
     }
+
+    /**
+     * Destroy the session completely, then start a fresh empty one so the
+     * response can still carry feedback (flash) to the next request. The
+     * cookie parameters set in bootstrap still apply to the new session.
+     */
+    public static function restart(): void
+    {
+        self::destroy();
+        session_start();
+    }
 }

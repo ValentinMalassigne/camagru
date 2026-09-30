@@ -106,6 +106,12 @@ Rules:
 - **Account page:** change username, email, password (same validation as registration). An email change takes effect immediately, with no re-verification. Two notification toggles:
   - "notify me on new comments" (default **true**);
   - "also notify me when I comment on my own images" (default **false**).
+- **Delete account (addition requested by the user, not part of the école 42 subject):**
+  a fourth form on the account page that requires the current password
+  (re-authentication). Instant effect: the user row is deleted — images, likes,
+  comments and reset tokens follow via `ON DELETE CASCADE` — and the session is
+  fully destroyed. Uploaded image files are removed by the application in
+  phase 3 (a DB cascade cannot touch the filesystem).
 
 ### 4.3 Gallery (public)
 - Lists all edited images by `created_at DESC`, **paginated, 6 per page** (`?page=N`, server-side `LIMIT/OFFSET`, validate `page`).

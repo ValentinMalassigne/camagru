@@ -10,6 +10,13 @@ set -eu
 
 LOG_DIR="/var/log/camagru"
 mkdir -p "$LOG_DIR" /var/www/camagru/uploads
+# The php-fpm workers run as www-data: they (and msmtp, spawned by mail())
+# must be able to write the log files and the uploads. Without this, every
+# log write and mail send fails with "Permission denied" at request time.
+# Recursive: a file created by any earlier root process (e.g. a debug exec
+# into the container) must not block the fpm user either.
+chown -R www-data:www-data "$LOG_DIR"
+chown www-data:www-data /var/www/camagru/uploads
 
 # --- 1. msmtp config -----------------------------------------------------
 # Built from .env values; never committed. Log goes to a file, never stdout.

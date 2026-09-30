@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../src/bootstrap.php';
 
+use App\Core\Auth;
 use App\Core\Request;
 use App\Core\Router;
 use App\Core\Response;
@@ -16,10 +17,10 @@ use App\Core\Csrf;
 $request = Request::fromGlobals();
 
 // Share data every template needs: the CSRF token (for the logout form) and
-// the current user (null until auth is built in phase 2).
+// the logged-in user (null for visitors).
 View::share([
-    'currentUser' => null,
-    'csrfToken'    => Csrf::token(),
+    'currentUser' => Auth::user(),
+    'csrfToken'   => Csrf::token(),
 ]);
 
 // Load the route table and match the incoming request.
