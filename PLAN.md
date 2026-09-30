@@ -2,7 +2,7 @@
 
 Ordered plan for the whole project. The agent follows this order and ticks the boxes as work advances.
 
-**Current step:** Phase 1
+**Current step:** Phase 2
 
 ## Rules for ticking
 
@@ -29,22 +29,22 @@ Ordered plan for the whole project. The agent follows this order and ticks the b
 
 ## Phase 1 — Walking skeleton
 
-- [ ] `.gitignore` created first (`.env`, uploaded files, log files)
-- [ ] `docker-compose.yml` with `nginx`, `php`, `db` (db healthcheck, named volumes, only nginx publishes `8080`)
-- [ ] `docker/php`: Dockerfile (gd, pdo_pgsql, msmtp, CA certificates), `php.ini`, `entrypoint.sh`
-- [ ] `docker/nginx/default.conf`: front controller, static files, `/uploads/` without PHP execution, security headers, `server_tokens off`, quiet logs
-- [ ] `db/schema.sql` (idempotent) and `bin/setup-db.php` (wait for DB, create what is missing, silent on success)
-- [ ] Console silence levers tried (php-fpm `log_level`, `NGINX_ENTRYPOINT_QUIET_LOGS`, Postgres `log_min_messages`); remaining startup lines listed in `NOTES.md`
-- [ ] `src/bootstrap.php`, autoloader, `routes.php`, `public/index.php`
-- [ ] Core classes: Env, Database (PDO settings), Router, Request, Response, View with `e()`, Session (secure settings), Csrf, Validator
-- [ ] Central error handler (log to file, generic 500 page)
-- [ ] Layout (header, main, footer), flash messages, `public/assets/css/app.css` (mobile-first, flexbox), favicon linked, home page
-- [ ] `NOTES.md` created (non-obvious tools justified, accepted startup lines)
-- [ ] Fresh clone + hand-made `.env` + `docker compose up --build` works
-- [ ] Empty DB: schema created automatically. Existing DB: left untouched. (Wipe the volume only with the user's approval.)
-- [ ] Favicon served, no 404 in the browser console
-- [ ] **(you)** Home page loads in Firefox 41 and Chrome 46
-- [ ] Checkpoint
+- [x] `.gitignore` created first (`.env`, uploaded files, log files)
+- [x] `docker-compose.yml` with `nginx`, `php`, `db` (db healthcheck, named volumes, only nginx publishes `8080`)
+- [x] `docker/php`: Dockerfile (gd, pdo_pgsql, msmtp, CA certificates), `php.ini`, `entrypoint.sh`
+- [x] `docker/nginx/default.conf`: front controller, static files, `/uploads/` without PHP execution, security headers, `server_tokens off`, quiet logs
+- [x] `db/schema.sql` (idempotent) and `bin/setup-db.php` (wait for DB, create what is missing, silent on success)
+- [x] Console silence levers tried (php-fpm `log_level`, `NGINX_ENTRYPOINT_QUIET_LOGS`, Postgres `log_min_messages`); remaining startup lines listed in `NOTES.md`
+- [x] `src/bootstrap.php`, autoloader, `routes.php`, `public/index.php`
+- [x] Core classes: Env, Database (PDO settings), Router, Request, Response, View with `e()`, Session (secure settings), Csrf, Validator
+- [x] Central error handler (log to file, generic 500 page)
+- [x] Layout (header, main, footer), flash messages, `public/assets/css/app.css` (mobile-first, flexbox), favicon linked, home page
+- [x] `NOTES.md` created (non-obvious tools justified, accepted startup lines)
+- [x] Fresh clone + hand-made `.env` + `docker compose up --build` works
+- [x] Empty DB: schema created automatically. Existing DB: left untouched. (Wipe the volume only with the user's approval.)
+- [x] Favicon served, no 404 in the browser console
+- [x] **(you)** Home page loads in Firefox 41 and Chrome 46
+- [x] Checkpoint
 
 ## Phase 2 — Accounts
 
@@ -190,4 +190,6 @@ Only after Phase 7 is fully checked, and only for the bonuses the user picks. Im
 
 Blockers, questions for the user and decisions taken. One line each, newest last.
 
--
+- Favicon is served as `public/favicon.png` (linked via `<link rel="icon" type="image/png">`), since the prepared file is a PNG. No `.ico` produced; no console 404.
+- `db/schema.sql` holds the full spec section 7 schema up front (all idempotent `IF NOT EXISTS`); later phases' "add table to schema.sql" items are already satisfied and will just be verified.
+- The nginx container uses a `command` override that `sed`s the main `error_log` to a file at `error` level, to silence the "start worker process" startup notices.

@@ -1,1 +1,9 @@
+# Secrets — never committed
 .env
+
+# Uploaded images (live in a Docker named volume, never in the repo)
+uploads/
+
+# Log files (app, php, nginx, msmtp — written to a volume, never the repo)
+*.log
+logs/

@@ -1,0 +1,213 @@
+/* Camagru stylesheet — plain hand-written CSS, mobile-first, flexbox only.
+   No CSS framework, no grid, no custom properties, no flex gap, no sticky.
+   Works from 320 px upward. */
+
+/* --- Reset / base ------------------------------------------------------ */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #222;
+    background: #f7f7f9;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+a {
+    color: #2a6;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+h1,
+h2,
+h3 {
+    line-height: 1.2;
+    margin: 0 0 0.5em;
+}
+
+p {
+    margin: 0 0 1em;
+}
+
+/* --- Header ----------------------------------------------------------- */
+.site-header {
+    background: #1f2937;
+    color: #fff;
+}
+
+.site-header__inner {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.site-header__brand {
+    color: #fff;
+    font-weight: 700;
+    font-size: 20px;
+}
+
+.site-header__brand:hover {
+    text-decoration: none;
+    color: #9ad;
+}
+
+.site-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.site-nav__link {
+    color: #fff;
+    margin-left: 12px;
+    padding: 6px 10px;
+}
+
+.site-nav__link:first-child {
+    margin-left: 0;
+}
+
+.site-nav__link--button {
+    background: #2a6;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.site-nav__link--button:hover {
+    background: #258a52;
+    text-decoration: none;
+}
+
+.site-nav__form {
+    margin: 0;
+}
+
+.site-nav__form button {
+    background: transparent;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 4px;
+    cursor: pointer;
+    font: inherit;
+    padding: 6px 10px;
+}
+
+.site-nav__form button:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* --- Main ------------------------------------------------------------- */
+.site-main {
+    flex: 1 0 auto;
+    width: 100%;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+/* --- Footer ----------------------------------------------------------- */
+.site-footer {
+    flex-shrink: 0;
+    text-align: center;
+    padding: 16px;
+    color: #777;
+    font-size: 14px;
+}
+
+/* --- Flash messages --------------------------------------------------- */
+.flash-list {
+    margin-bottom: 16px;
+}
+
+.flash {
+    padding: 10px 14px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.flash--success {
+    background: #e6f7ee;
+    border: 1px solid #b7e4c7;
+    color: #1c6b3a;
+}
+
+.flash--error {
+    background: #fdeaea;
+    border: 1px solid #f5c6c0;
+    color: #9b1c1c;
+}
+
+.flash--info {
+    background: #eaf2fb;
+    border: 1px solid #c5d9ee;
+    color: #1d4e7a;
+}
+
+/* --- Home page -------------------------------------------------------- */
+.hero {
+    text-align: center;
+    padding: 48px 16px;
+}
+
+.hero__title {
+    font-size: 32px;
+}
+
+.hero__subtitle {
+    color: #555;
+    max-width: 480px;
+    margin: 0 auto 12px;
+}
+
+.hero__hint {
+    color: #888;
+    font-size: 14px;
+}
+
+/* --- Generic error page ---------------------------------------------- */
+.page--error {
+    text-align: center;
+    padding: 48px 16px;
+}
+
+.page__title {
+    font-size: 26px;
+}
+
+/* --- Responsive tweak for narrow phones ------------------------------- */
+@media (max-width: 360px) {
+    .site-header__inner {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .site-nav {
+        margin-top: 8px;
+    }
+
+    .site-nav__link {
+        margin-left: 0;
+        margin-right: 12px;
+    }
+}
