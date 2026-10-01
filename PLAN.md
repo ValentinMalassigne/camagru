@@ -2,7 +2,7 @@
 
 Ordered plan for the whole project. The agent follows this order and ticks the boxes as work advances.
 
-**Current step:** Phase 3 (not started)
+**Current step:** Phase 4 (not started) — Phase 3 checkpoint closed after VM results in Firefox 41 and Chrome 46
 
 ## Rules for ticking
 
@@ -82,29 +82,29 @@ Ordered plan for the whole project. The agent follows this order and ticks the b
 ## Phase 3 — Editor and image pipeline
 
 ### 3.1 Server pipeline
-- [ ] `config/overlays.php` (whitelist `id => filename`, 4 or more PNGs with alpha) and `images` table
-- [ ] `ImageComposer`: size limit 5 MB, real type check with `finfo` (PNG and JPEG only) and `getimagesize`, dimension cap, GD decode and re-encode to PNG, alpha compositing, random filename, saved in the uploads volume
-- [ ] Overlay chosen by id only; a missing or unknown id is rejected
-- [ ] nginx and PHP body and upload limits aligned; uploads mounted read-only in nginx
-- [ ] `GET /editor` is auth-only and redirects visitors to login with a friendly message
-- [ ] Upload form works end to end without JavaScript
-- [ ] Checkpoint
+- [x] `config/overlays.php` (whitelist `id => filename`, 4 or more PNGs with alpha) and `images` table
+- [x] `ImageComposer`: size limit 5 MB, real type check with `finfo` (PNG and JPEG only) and `getimagesize`, dimension cap, GD decode and re-encode to PNG, alpha compositing, random filename, saved in the uploads volume
+- [x] Overlay chosen by id only; a missing or unknown id is rejected
+- [x] nginx and PHP body and upload limits aligned; uploads mounted read-only in nginx
+- [x] `GET /editor` is auth-only and redirects visitors to login with a friendly message
+- [x] Upload form works end to end without JavaScript
+<!-- - [ ] Checkpoint -->
 
 ### 3.2 Editor JavaScript
-- [ ] Overlay selection; capture button and upload submit disabled until an overlay is selected
-- [ ] Webcam wrapper (unprefixed `getUserMedia`, then prefixed, else upload-only message)
-- [ ] Stream attached by feature detection (`srcObject`, then `mozSrcObject`, then `createObjectURL`)
-- [ ] Capture: canvas, `toDataURL('image/png')`, Blob, `FormData` with overlay id and CSRF header, sent with `fetch` (no `toBlob`)
-- [ ] No webcam or permission refused: friendly message, upload still works, no console noise
-- [ ] Webcam and upload both always available
-- [ ] ES5-style JS and flexbox-only CSS respected
-- [ ] **(you)** Webcam path tested in the VM; `COMPATIBILITY.md` entries updated (`expected` to `confirmed` or `fixed`)
-- [ ] Checkpoint
+- [x] Overlay selection; capture button and upload submit disabled until an overlay is selected
+- [x] Webcam wrapper (unprefixed `getUserMedia`, then prefixed, else upload-only message)
+- [x] Stream attached by feature detection (`srcObject`, then `mozSrcObject`, then `createObjectURL`)
+- [x] Capture: canvas, `toDataURL('image/png')`, Blob, `FormData` with overlay id and CSRF header, sent with `fetch` (no `toBlob`)
+- [x] No webcam or permission refused: friendly message, upload still works, no console noise
+- [x] Webcam and upload both always available
+- [x] ES5-style JS and flexbox-only CSS respected
+- [x] **(you)** Webcam path tested in the VM; `COMPATIBILITY.md` entries updated (`expected` to `confirmed` or `fixed`)
+<!-- - [ ] Checkpoint -->
 
 ### 3.3 Sidebar and delete
-- [ ] Side section: thumbnails of all the current user's previous pictures, newest first
-- [ ] Delete own images only (POST, CSRF, server-side ownership check); removes the file and DB rows
-- [ ] Checkpoint
+- [x] Side section: thumbnails of all the current user's previous pictures, newest first
+- [x] Delete own images only (POST, CSRF, server-side ownership check); removes the file and DB rows
+- [x] Checkpoint
 
 ## Phase 4 — Gallery
 
@@ -198,3 +198,9 @@ Blockers, questions for the user and decisions taken. One line each, newest last
 - Phase 2.1, user decision: email links use the request's Host header when it matches an allowlist (APP_URL host + new `APP_ALLOWED_HOSTS` env var, wildcard `*` per label), else APP_URL. Implemented in `src/Core/SiteUrl.php`. Small deviation from spec section 10 (APP_URL is the fallback, no longer the only source), approved by the user to allow testing from machines with varying IPs.
 - Phase 2.4, user decision: account deletion added (password confirmation, instant effect) — not in the spec, requested by the user. DB rows cascade via the schema; in phase 3, deleting an account (or an image) must also delete the uploaded FILES, which the DB cascade cannot do.
 - pdo_pgsql with native prepares binds PHP `false` as `''` (invalid for boolean columns): booleans are bound with an explicit `PDO::PARAM_BOOL` (see `User::updateNotifications`).
+- Phase 3: `POST /editor/capture` serves both picture sources — the webcam fetch (identified by its `X-Requested-With` header, answered with JSON `{id, url}`) and the no-JavaScript upload form (answered with a flash + redirect). The spec section 5 route list is unchanged; both use the same `ImageComposer` pipeline, as required by section 8.
+- Phase 3: uploads above 2500 x 2500 px are rejected (dimension cap checked with `getimagesize` BEFORE any GD decode, so a "decompression bomb" cannot exhaust the memory limit). Overlays are scaled to fit inside the picture and centered on it.
+- Phase 3: the 3.2 task boxes are ticked for the code being in place and ES5/syntax-checked only; the actual webcam behaviour was not runnable here and is covered by the unticked `(you)` item and the 3.3 checkpoint.
+- Phase 3, VM results: Firefox 41 — the capture with `fetch` + `FormData` + `Blob` never reached the server (no console error, no row, no log); switched the capture transport to `XMLHttpRequest` with the same `FormData` (COMPATIBILITY.md entry 5, status `confirmed` until re-tested). Chrome 46 — `getUserMedia` is never requested on a non-localhost HTTP origin (Firefox 41 has no such gate, so its camera worked at the same URL); the webcam path is only testable with the VM reaching the site as `http://localhost:8080` (port forward), and editor.js now shows an explicit secure-origin message in that case (entry 6).
+- Phase 3: `/assets/` is served with `expires 1h`, so a stale browser cache can mask JS fixes. The editor script include is versioned (`editor.js?v=N` in the editor view); every future change to `editor.js` must bump the version (noted in the view itself).
+- Phase 3, VM results, closure: both workarounds re-tested in the VM — Firefox 41 capture works via XHR (entry 5 → `fixed`), Chrome 46 camera works with the VM seeing `http://localhost:8080` (entry 6 → `fixed`); entries 1-3 also validated and set to `fixed`. Phase 3 checkpoint closed.

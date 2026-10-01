@@ -9,12 +9,19 @@ Justification of non-obvious tools and accepted (un-silenceable) startup lines.
   config generated at start by `entrypoint.sh` from `.env`.
 - **GD** — bundled PHP extension for decoding, compositing and PNG
   re-encoding of images (server side). Built with freetype + jpeg + png support.
+  Used from phase 3 by `ImageComposer`: `imagecreatefromstring` to decode,
+  a fresh truecolor canvas to re-encode (stripping any metadata or payload
+  embedded in the source), `imagecopyresampled` with alpha blending to draw
+  the overlay, `imagepng` to save.
 - **pdo_pgsql** — bundled PHP extension for PostgreSQL access via PDO. All
   queries use bound parameters.
 - **openssl** — bundled PHP extension; required later for the phase-2 SMTP
   client (`ssl://`, STARTTLS). Present in the image already.
 - **fileinfo (`finfo`)** — bundled PHP extension for real MIME detection of
-  uploads (used from phase 3 onward).
+  uploads (used from phase 3 onward): `finfo` reads the uploaded content
+  with `FILEINFO_MIME_TYPE`, so a lying extension or filename is ignored.
+  Only `image/png` and `image/jpeg` pass; PHP code renamed to `.png` is
+  rejected before GD ever decodes it.
 - **mbstring** — bundled PHP extension for UTF-8-aware string length checks
   (used from phase 4 onward for comments).
 
@@ -55,6 +62,10 @@ They appear once on start and never again while the app is running.
 - `db`: `LOG: database system is ready to accept connections`
 - `db`: (first start only) the initdb banner and `CREATE DATABASE` output from
   the postgres image's first-run initialization.
+- `db`: `PostgreSQL Database directory appears to contain a database; Skipping
+  initialization` — printed by the official image's entrypoint script on
+  every start of an existing data volume (not by the server, so
+  `log_min_messages` cannot reach it). Startup only; never at request time.
 
 No request-time output is produced by any container.
 
@@ -85,3 +96,13 @@ email links); the user creates the value by hand in `.env`:
   request Host falls back to APP_URL. This allows testing the site from
   other machines (laptop, school computers) without editing APP_URL, while
   the allowlist prevents host-header poisoning of emailed links.
+
+## Internal overridable constants (no `.env` entry needed)
+
+Same pattern as the pre-existing `APP_LOG_FILE` (see `src/bootstrap.php`):
+a getenv override with a working default, so nothing has to be added to
+`.env` for the stack to run.
+
+- **APP_UPLOAD_DIR** — directory where the composited pictures are written
+  (default `/var/www/camagru/uploads`, the uploads volume shared with
+  nginx). Only useful for running the pipeline outside docker.

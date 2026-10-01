@@ -322,6 +322,197 @@ p {
     background: #922;
 }
 
+/* --- Editor ----------------------------------------------------------- */
+.page--editor {
+    max-width: 960px;
+}
+
+.editor {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.editor__main {
+    flex: 1 1 320px;
+    min-width: 0;
+    margin-right: 24px;
+}
+
+.editor__side {
+    flex: 1 1 240px;
+    min-width: 200px;
+}
+
+.editor__preview {
+    margin-bottom: 16px;
+}
+
+.editor__video {
+    display: block;
+    width: 100%;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 6px;
+    min-height: 120px;
+}
+
+.editor__message {
+    background: #eaf2fb;
+    border: 1px solid #c5d9ee;
+    border-radius: 4px;
+    color: #1d4e7a;
+    padding: 10px 14px;
+}
+
+.editor__status {
+    min-height: 1.5em;
+    margin: 8px 0 0;
+    font-size: 14px;
+    color: #555;
+}
+
+.is-hidden {
+    display: none;
+}
+
+.editor-form {
+    margin: 0;
+}
+
+.editor-overlays {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin: 0 0 16px;
+    padding: 12px;
+}
+
+.editor-overlays__legend {
+    font-weight: 600;
+    padding: 0 6px;
+}
+
+.editor-overlays__list {
+    display: flex;
+    flex-wrap: wrap;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.editor-overlays__item {
+    margin: 0 10px 10px 0;
+}
+
+.editor-overlays__label {
+    display: block;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    padding: 4px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.editor-overlays__label:hover {
+    border-color: #2a6;
+}
+
+.editor-overlays__radio:checked + .editor-overlays__img {
+    outline: 2px solid #2a6;
+}
+
+.editor-overlays__img {
+    display: block;
+    width: 72px;
+    height: 72px;
+}
+
+.editor-upload {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 16px;
+}
+
+.editor-upload__label {
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.editor-upload__input {
+    font: inherit;
+    margin-bottom: 10px;
+}
+
+.editor-submit {
+    font: inherit;
+    font-weight: 600;
+    color: #fff;
+    background: #2a6;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 16px;
+    cursor: pointer;
+    align-self: flex-start;
+    margin-bottom: 8px;
+}
+
+.editor-submit:hover {
+    background: #258a52;
+}
+
+.editor-submit[disabled] {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.editor__side-title {
+    font-size: 18px;
+}
+
+.editor-side__list {
+    display: flex;
+    flex-wrap: wrap;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.editor-side__item {
+    margin: 0 12px 12px 0;
+    text-align: center;
+}
+
+.editor-side__img {
+    display: block;
+    width: 120px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.editor-side__delete {
+    margin: 4px 0 0;
+}
+
+.editor-side__delete-button {
+    font: inherit;
+    font-size: 13px;
+    color: #9b1c1c;
+    background: #fdeaea;
+    border: 1px solid #f5c6c0;
+    border-radius: 4px;
+    padding: 3px 10px;
+    cursor: pointer;
+}
+
+.editor-side__delete-button:hover {
+    background: #f5c6c0;
+}
+
+.editor-side__empty {
+    color: #777;
+}
+
 /* --- Responsive tweak for narrow phones ------------------------------- */
 @media (max-width: 360px) {
     .site-header__inner {

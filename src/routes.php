@@ -7,7 +7,9 @@ declare(strict_types=1);
 
 use App\Controllers\AccountController;
 use App\Controllers\AuthController;
+use App\Controllers\EditorController;
 use App\Controllers\HomeController;
+use App\Controllers\ImageController;
 use App\Core\Router;
 
 $router = new Router();
@@ -34,5 +36,13 @@ $router->add('POST', '/reset-password', AuthController::class, 'resetPassword');
 // Account page (phase 2.4).
 $router->add('GET', '/account', AccountController::class, 'index');
 $router->add('POST', '/account', AccountController::class, 'update');
+
+// Editor (phase 3): auth-only page and the shared capture/upload endpoint
+// (the webcam fetch gets JSON, the no-JavaScript form gets a redirect).
+$router->add('GET', '/editor', EditorController::class, 'index');
+$router->add('POST', '/editor/capture', EditorController::class, 'capture');
+
+// Deleting one of the user's own pictures (auth, owner, CSRF).
+$router->add('POST', '/images/{id}/delete', ImageController::class, 'delete');
 
 return $router;

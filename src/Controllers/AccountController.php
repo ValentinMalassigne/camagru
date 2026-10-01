@@ -19,6 +19,7 @@ use App\Core\Response;
 use App\Core\Session;
 use App\Core\Validator;
 use App\Core\View;
+use App\Models\Image;
 use App\Models\PasswordReset;
 use App\Models\User;
 use PDOException;
@@ -199,7 +200,19 @@ class AccountController
             return $this->showAccount($validator->errors(), []);
         }
 
+        // The uploaded FILES must be removed by the application: the schema
+        // cascade deletes the rows, but it cannot touch the filesystem.
+        $filenames = Image::filenamesByUser((int) $user['id']);
+
         User::delete((int) $user['id']);
+
+        // Best effort, after the row deletion: a leftover file is logged but
+        // must never block or fail the account deletion.
+        foreach ($filenames as $filename) {
+            if (!Image::removeFile($filename)) {
+                app_log('Could not remove uploaded file: ' . $filename);
+            }
+        }
 
         // Instant effect: the session cannot survive the account it refers to.
         Auth::logout();

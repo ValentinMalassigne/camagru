@@ -21,10 +21,23 @@ spl_autoload_register(function (string $class): void {
 // Global view helpers (e(), e_attr()) used by every template.
 require __DIR__ . '/helpers.php';
 
+// Application root (the project directory), used to reach config/ and the
+// bundled overlay assets from anywhere in src/.
+if (!defined('APP_ROOT')) {
+    define('APP_ROOT', dirname(__DIR__));
+}
+
 // --- Log destination ----------------------------------------------------
 // App log file: overridable via APP_LOG_FILE, defaults to the docker volume.
 if (!defined('APP_LOG_FILE')) {
     define('APP_LOG_FILE', getenv('APP_LOG_FILE') ?: '/var/log/camagru/app.log');
+}
+
+// Uploaded composited pictures (spec section 8): written by php, served
+// read-only by nginx from the same shared volume. Overridable via
+// APP_UPLOAD_DIR, defaults to the docker volume.
+if (!defined('APP_UPLOAD_DIR')) {
+    define('APP_UPLOAD_DIR', getenv('APP_UPLOAD_DIR') ?: APP_ROOT . '/uploads');
 }
 
 /**
