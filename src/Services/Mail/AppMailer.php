@@ -76,4 +76,45 @@ class AppMailer
 
         return $this->mailer->send($to, 'Reset your Camagru password', $html, $text);
     }
+
+    /**
+     * Send the new-comment notification to the author of a picture
+     * (spec section 4.3). The caller already applied the two notification
+     * preferences; this method only renders and sends. Returns true on
+     * success, false on failure (caller logs and continues; a mail failure
+     * must never break the request).
+     *
+     * @param string      $to           The author's email address.
+     * @param string      $authorName   The author's display name (escaped in the template).
+     * @param string      $commenterName The commenting user's display name (escaped in the template).
+     * @param int         $imageId      The commented picture's id, for the link.
+     * @param string      $body         The comment body (escaped in the template).
+     * @param string|null $baseUrl      Base URL for the link (see SiteUrl); defaults to APP_URL.
+     */
+    public function sendCommentNotification(
+        string $to,
+        string $authorName,
+        string $commenterName,
+        int $imageId,
+        string $body,
+        ?string $baseUrl = null
+    ): bool {
+        $base = rtrim($baseUrl ?? Env::require('APP_URL'), '/');
+        $link = $base . '/images/' . $imageId;
+
+        $html = View::renderPartial('emails/comment_notification.php', [
+            'authorName'   => $authorName,
+            'commenterName' => $commenterName,
+            'link'         => $link,
+            'body'         => $body,
+        ]);
+        $text = View::renderPartial('emails/comment_notification_text.php', [
+            'authorName'   => $authorName,
+            'commenterName' => $commenterName,
+            'link'         => $link,
+            'body'         => $body,
+        ]);
+
+        return $this->mailer->send($to, $commenterName . ' commented on your Camagru picture', $html, $text);
+    }
 }

@@ -20,8 +20,11 @@ services:
       timeout: 3s
       retries: 20
       start_period: 5s
-    # Quiet the server log: only warnings and above reach the console.
-    command: ["postgres", "-c", "log_min_messages=warning"]
+    # Quiet the server log: only warnings and above reach the console, and
+    # the periodic checkpoint reports stay out of it too (log_checkpoints
+    # is on by default in Postgres 15+ and writes LOG-rank lines every five
+    # minutes of activity — runtime output, so it must not reach the console).
+    command: ["postgres", "-c", "log_min_messages=warning", "-c", "log_checkpoints=off"]
     # No port published to the host.
     expose:
       - "5432"

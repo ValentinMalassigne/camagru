@@ -164,25 +164,195 @@ p {
     color: #1d4e7a;
 }
 
-/* --- Home page -------------------------------------------------------- */
-.hero {
-    text-align: center;
-    padding: 48px 16px;
-}
-
-.hero__title {
-    font-size: 32px;
-}
-
-.hero__subtitle {
+/* --- Gallery (home page) ----------------------------------------------- */
+.gallery__empty {
     color: #555;
-    max-width: 480px;
-    margin: 0 auto 12px;
 }
 
-.hero__hint {
-    color: #888;
+.gallery__grid {
+    display: flex;
+    flex-wrap: wrap;
+    /* Negative side margins cancel the inner ones, so the grid spans the
+       full width without flex gap (not supported in the target browsers). */
+    margin: 0 -8px;
+    list-style: none;
+    padding: 0;
+}
+
+.gallery__item {
+    /* Two per row on phones; the inner 8px margins keep the gutter. */
+    width: calc(50% - 16px);
+    margin: 0 8px 16px;
+}
+
+.gallery__link {
+    display: block;
+}
+
+.gallery__img {
+    display: block;
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.gallery__meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #777;
+}
+
+.gallery__author {
+    font-weight: 600;
+    color: #555;
+}
+
+.gallery-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.gallery-pagination__link {
+    margin: 0 12px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    background: #2a6;
+    color: #fff;
+}
+
+a.gallery-pagination__link:hover {
+    background: #258a52;
+    text-decoration: none;
+}
+
+.gallery-pagination__link--off {
+    background: #e5e7eb;
+    color: #999;
+}
+
+.gallery-pagination__current {
+    color: #555;
+}
+
+/* --- Image detail page ------------------------------------------------ */
+.image-view__back {
+    margin-bottom: 8px;
+}
+
+.image-view {
+    margin: 0 0 16px;
+}
+
+.image-view__img {
+    display: block;
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.image-view__caption {
+    margin-top: 6px;
     font-size: 14px;
+    color: #555;
+}
+
+.image-view__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.image-view__like-form {
+    margin: 0;
+}
+
+.image-view__like-button {
+    font: inherit;
+    font-weight: 600;
+    color: #fff;
+    background: #2a6;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 14px;
+    cursor: pointer;
+}
+
+.image-view__like-button:hover {
+    background: #258a52;
+    text-decoration: none;
+}
+
+.image-view__like-button--on {
+    background: #9b1c1c;
+}
+
+.image-view__like-button--on:hover {
+    background: #7a1616;
+}
+
+.image-view__like-count {
+    margin-left: 12px;
+    color: #555;
+}
+
+/* --- Comments ---------------------------------------------------------- */
+.comments__title {
+    font-size: 18px;
+}
+
+.comments__empty,
+.comments__login-hint {
+    color: #777;
+}
+
+.comments__list {
+    list-style: none;
+    margin: 0 0 16px;
+    padding: 0;
+}
+
+.comments__item {
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+.comments__meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin: 0 0 4px;
+    font-size: 13px;
+}
+
+.comments__author {
+    font-weight: 600;
+}
+
+.comments__date {
+    color: #999;
+}
+
+.comments__body {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.comments__form textarea {
+    font: inherit;
+    resize: vertical;
 }
 
 /* --- Generic error page ---------------------------------------------- */
@@ -513,7 +683,19 @@ p {
     color: #777;
 }
 
-/* --- Responsive tweak for narrow phones ------------------------------- */
+/* --- Responsive tweaks -------------------------------------------------- */
+@media (min-width: 640px) {
+    /* Gallery: three pictures per row once there is room for them. */
+    .gallery__item {
+        width: calc(33.333% - 16px);
+    }
+
+    /* Detail page: the picture is capped so huge uploads do not dominate. */
+    .image-view__img {
+        max-width: 640px;
+    }
+}
+
 @media (max-width: 360px) {
     .site-header__inner {
         flex-direction: column;

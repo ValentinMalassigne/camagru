@@ -2,7 +2,7 @@
 
 Ordered plan for the whole project. The agent follows this order and ticks the boxes as work advances.
 
-**Current step:** Phase 4 (not started) — Phase 3 checkpoint closed after VM results in Firefox 41 and Chrome 46
+**Current step:** Phase 6 (full compatibility pass) — every page and flow retested in Firefox 41 and Chrome 46 in the VM
 
 ## Rules for ticking
 
@@ -109,37 +109,37 @@ Ordered plan for the whole project. The agent follows this order and ticks the b
 ## Phase 4 — Gallery
 
 ### 4.1 List and detail
-- [ ] Public gallery ordered by `created_at DESC`, 6 per page, `?page=` validated, `LIMIT` and `OFFSET` bound
-- [ ] Image detail page `GET /images/{id}`
-- [ ] Checkpoint
+- [x] Public gallery ordered by `created_at DESC`, 6 per page, `?page=` validated, `LIMIT` and `OFFSET` bound
+- [x] Image detail page `GET /images/{id}`
+<!-- - [ ] Checkpoint -->
 
 ### 4.2 Likes
-- [ ] `likes` table added to the schema
-- [ ] Like toggle (POST, CSRF), logged-in users only; like count displayed
-- [ ] Checkpoint
+- [x] `likes` table added to the schema
+- [x] Like toggle (POST, CSRF), logged-in users only; like count displayed
+<!-- - [ ] Checkpoint -->
 
 ### 4.3 Comments and notifications
-- [ ] `comments` table added to the schema
-- [ ] Add comment (POST, CSRF), logged-in users only; body validated and escaped on output
-- [ ] Notification email to the image author when `notify_on_comment` is on
-- [ ] When the author comments on their own image, email only if `notify_on_own_comment` is also on
-- [ ] Mail failures logged to a file and never break the request
-- [ ] Checkpoint
+- [x] `comments` table added to the schema
+- [x] Add comment (POST, CSRF), logged-in users only; body validated and escaped on output
+- [x] Notification email to the image author when `notify_on_comment` is on
+- [x] When the author comments on their own image, email only if `notify_on_own_comment` is also on
+- [x] Mail failures logged to a file and never break the request
+- [x] Checkpoint. **(you)** VM smoke-test of phase 4 passed in Firefox 41 and Chrome 46; no compatibility problems reported
 
 ## Phase 5 — Final security review
 
-- [ ] The agent reminded the user that it is time for the review
-- [ ] No plaintext password anywhere (DB, logs, emails)
-- [ ] No HTML or JS injection (usernames, comments, flash messages, emails)
-- [ ] Uploads: size, real type, re-encoding, random filename, no PHP execution in `/uploads/`
-- [ ] No SQL built by string concatenation; `LIMIT` and `OFFSET` bound
-- [ ] CSRF token checked on every POST; authentication and ownership checked on every private route
-- [ ] Sessions and headers configured as in spec section 9; tokens random, hashed, single-use and expiring where required
-- [ ] No real secret in any committed file; `.env` ignored (check `git status` and the history)
-- [ ] Error pages and logs leak no internal detail
-- [ ] Evaluator-style attacks tried: POST without CSRF token, deleting another user's image, XSS in username and comment, a quote in the login fields, a renamed PHP file as upload, the editor while logged out, reusing a reset token, direct access to `src/`, `db/` and `.env`
-- [ ] Every finding fixed and re-checked
-- [ ] Checkpoint
+- [x] The agent reminded the user that it is time for the review
+- [x] No plaintext password anywhere (DB, logs, emails)
+- [x] No HTML or JS injection (usernames, comments, flash messages, emails)
+- [x] Uploads: size, real type, re-encoding, random filename, no PHP execution in `/uploads/`
+- [x] No SQL built by string concatenation; `LIMIT` and `OFFSET` bound
+- [x] CSRF token checked on every POST; authentication and ownership checked on every private route
+- [x] Sessions and headers configured as in spec section 9; tokens random, hashed, single-use and expiring where required
+- [x] No real secret in any committed file; `.env` ignored (check `git status` and the history) — working tree and `.env` verified clean; the mail values in the initial commits are accepted by user decision and documented in NOTES.md (no password among them, private repo)
+- [x] Error pages and logs leak no internal detail
+- [x] Evaluator-style attacks tried: POST without CSRF token, deleting another user's image, XSS in username and comment, a quote in the login fields, a renamed PHP file as upload, the editor while logged out, reusing a reset token, direct access to `src/`, `db/` and `.env`
+- [x] Every finding fixed and re-checked
+- [x] Checkpoint. **(you)** Logs confirmed clean by the user during browser use; history finding accepted by user decision (NOTES.md)
 
 ## Phase 6 — Full compatibility pass
 
@@ -203,4 +203,14 @@ Blockers, questions for the user and decisions taken. One line each, newest last
 - Phase 3: the 3.2 task boxes are ticked for the code being in place and ES5/syntax-checked only; the actual webcam behaviour was not runnable here and is covered by the unticked `(you)` item and the 3.3 checkpoint.
 - Phase 3, VM results: Firefox 41 — the capture with `fetch` + `FormData` + `Blob` never reached the server (no console error, no row, no log); switched the capture transport to `XMLHttpRequest` with the same `FormData` (COMPATIBILITY.md entry 5, status `confirmed` until re-tested). Chrome 46 — `getUserMedia` is never requested on a non-localhost HTTP origin (Firefox 41 has no such gate, so its camera worked at the same URL); the webcam path is only testable with the VM reaching the site as `http://localhost:8080` (port forward), and editor.js now shows an explicit secure-origin message in that case (entry 6).
 - Phase 3: `/assets/` is served with `expires 1h`, so a stale browser cache can mask JS fixes. The editor script include is versioned (`editor.js?v=N` in the editor view); every future change to `editor.js` must bump the version (noted in the view itself).
-- Phase 3, VM results, closure: both workarounds re-tested in the VM — Firefox 41 capture works via XHR (entry 5 → `fixed`), Chrome 46 camera works with the VM seeing `http://localhost:8080` (entry 6 → `fixed`); entries 1-3 also validated and set to `fixed`. Phase 3 checkpoint closed.
+- Phase 3, VM results, closure: both workarounds re-tested in the VM — Firefox 41 capture works via XHR (entry 5 → `fixed`), Chrome 46 camera works with the VM seeing `http://localhost:8080` (entry 6 → `fixed`); entries 1-3 also validated and set to `fixed`. Phase 3 checkpoint closed
+- Phase 4: the gallery replaced the walking-skeleton home page: `HomeController` and `pages/home.php` were removed, `/` is now `GalleryController::index` (the spec section 3 layout names a Gallery controller, not a Home one).
+- Phase 4, `?page=` normalisation: a missing, non-numeric, zero or negative value falls back to page 1; a value beyond the last page is clamped to the last page. The value never reaches SQL as text and `LIMIT`/`OFFSET` are bound with `PDO::PARAM_INT`.
+- Phase 4: comments are capped at 1000 characters (UTF-8-aware, via the new `Validator::maxLength` using mbstring, see NOTES.md); the textarea also carries `maxlength="1000"` as a client-side hint. On a validation error the body is not re-filled, the flash names the problem.
+- Phase 4, VM results, closure: the full phase 4 smoke-test list passed in Firefox 41 and Chrome 46 with no compatibility problems (no new COMPATIBILITY.md entries needed — phase 4 added no client JavaScript). Phase 4 checkpoint (4.3) closed.
+- Phase 4: the 4.x task boxes are ticked for server-side verification (curl against the running stack: pagination, likes, comments, CSRF, escaping, all four notification branches, the mail-failure path); the Firefox 41 / Chrome 46 validation of these pages was deliberately deferred to the 4.3 checkpoint per the user's decision to skip the 4.1 and 4.2 checkpoints.
+- Phase 4, VM results, closure: the full phase 4 smoke-test list passed in Firefox 41 and Chrome 46 with no compatibility problems (no new COMPATIBILITY.md entries needed — phase 4 added no client JavaScript). Phase 4 checkpoint (4.3) closed.
+- Phase 5 started: the mandatory part being complete, the final security review (spec section 9) runs first, per the workflow.
+- Phase 5, review method: all evaluator-style attacks were run server-side with curl against the running stack (a throwaway account and test rows were created for them and fully removed afterwards); the checklist items that need a browser stay for the user's VM pass. One finding was fixed on the spot: Postgres `log_checkpoints` (default on in Postgres 15+) wrote `LOG: checkpoint starting/complete` pairs to the console every 5 minutes of activity — runtime output, so `log_checkpoints=off` was added to the `db` command in `docker-compose.yml` (see NOTES.md).
+- Phase 5, open finding — real mail values in git history: the two initial commits (`dcd8723`, `cccc453`, both on `origin/main`) contained the real `MAIL_FROM` address, `SMTP_HOST` and `SMTP_USER` in `PROJECT_CONTEXT.md`. They were scrubbed from later revisions, so `HEAD` and the working tree are clean, but the values remain in the pushed history. Removing them needs a history rewrite (filter-repo + force-push to `origin/main`); decision pending with the user. The "no real secret in any committed file" box stays unticked until this is decided.
+- Phase 5, closure (user decision A): the history values are accepted, not rewritten — no password among them, private repo, school project, and the sending address/host appear in every outgoing mail anyway. Deviation documented in NOTES.md ("Accepted deviations"). The user confirmed the container console stays clean during browser use. Phase 5 checkpoint closed..

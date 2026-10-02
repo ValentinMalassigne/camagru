@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Core\Database;
+use PDO;
 
 class Image
 {
@@ -23,6 +24,69 @@ class Image
     public static function findById(int $id): ?array
     {
         $stmt = Database::connection()->prepare('SELECT * FROM images WHERE id = ?');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
+
+    /**
+     * Total number of images, used to compute the gallery page count.
+     */
+    public static function countAll(): int
+    {
+        $stmt = Database::connection()->query('SELECT COUNT(*) FROM images');
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * One page of the public gallery (spec section 4.3): every image, newest
+     * first, with its author's username and its like and comment counts
+     * (sub-selects, so one query serves the whole page). LIMIT and OFFSET are
+     * bound parameters just like every other value, never string-spliced.
+     *
+     * @param int $limit  Page size (6 in the gallery).
+     * @param int $offset Number of rows to skip ((page - 1) * limit).
+     * @return array<int, array<string, mixed>>
+     */
+    public static function page(int $limit, int $offset): array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT i.id, i.filename, i.created_at, u.username,
+                    (SELECT COUNT(*) FROM likes l    WHERE l.image_id = i.id) AS like_count,
+                    (SELECT COUNT(*) FROM comments c WHERE c.image_id = i.id) AS comment_count
+             FROM images i
+             JOIN users u ON u.id = i.user_id
+             ORDER BY i.created_at DESC, i.id DESC
+             LIMIT ? OFFSET ?'
+        );
+        // Integers are bound explicitly: with native prepares, a string
+        // parameter would make Postgres reject the query (same reason as the
+        // boolean note in User::updateNotifications).
+        $stmt->bindValue(1, $limit, PDO::PARAM_INT);
+        $stmt->bindValue(2, $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        /** @var array<int, array<string, mixed>> */
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Find one image by primary key together with its author's username and
+     * its like and comment counts, for the public detail page. The author
+     * always exists (an image is removed with its owner by the schema's
+     * cascade), but the JOIN keeps the semantics explicit anyway.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function findWithAuthor(int $id): ?array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT i.id, i.filename, i.created_at, i.user_id, u.username,
+                    (SELECT COUNT(*) FROM likes l WHERE l.image_id = i.id) AS like_count,
+                    (SELECT COUNT(*) FROM comments c WHERE c.image_id = i.id) AS comment_count
+             FROM images i
+             JOIN users u ON u.id = i.user_id
+             WHERE i.id = ?'
+        );
         $stmt->execute([$id]);
         $row = $stmt->fetch();
         return $row === false ? null : $row;

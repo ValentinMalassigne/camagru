@@ -7,15 +7,18 @@ declare(strict_types=1);
 
 use App\Controllers\AccountController;
 use App\Controllers\AuthController;
+use App\Controllers\CommentController;
 use App\Controllers\EditorController;
-use App\Controllers\HomeController;
+use App\Controllers\GalleryController;
 use App\Controllers\ImageController;
+use App\Controllers\LikeController;
 use App\Core\Router;
 
 $router = new Router();
 
-// Home page (will become the public gallery in phase 4).
-$router->add('GET', '/', HomeController::class, 'index');
+// Public gallery: the home page lists every picture (phase 4).
+$router->add('GET', '/', GalleryController::class, 'index');
+$router->add('GET', '/images/{id}', GalleryController::class, 'show');
 
 // Registration and email confirmation (phase 2.1).
 $router->add('GET', '/register', AuthController::class, 'registerForm');
@@ -44,5 +47,9 @@ $router->add('POST', '/editor/capture', EditorController::class, 'capture');
 
 // Deleting one of the user's own pictures (auth, owner, CSRF).
 $router->add('POST', '/images/{id}/delete', ImageController::class, 'delete');
+
+// Gallery actions for logged-in users (phase 4).
+$router->add('POST', '/images/{id}/like', LikeController::class, 'toggle');
+$router->add('POST', '/images/{id}/comments', CommentController::class, 'store');
 
 return $router;

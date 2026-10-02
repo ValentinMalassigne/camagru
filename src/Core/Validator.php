@@ -75,6 +75,18 @@ class Validator
     }
 
     /**
+     * Require a value of at most $max characters. mb_strlen counts real
+     * characters, not bytes, so a comment in any script counts fairly.
+     */
+    public function maxLength(string $field, string $value, int $max): self
+    {
+        if (mb_strlen($value, 'UTF-8') > $max) {
+            $this->errors[$field] = "This field may not be longer than $max characters.";
+        }
+        return $this;
+    }
+
+    /**
      * True when no validation errors were recorded.
      */
     public function passes(): bool

@@ -47,6 +47,12 @@ Justification of non-obvious tools and accepted (un-silenceable) startup lines.
 - **Postgres**: `log_min_messages=warning` raised so DEBUG/INFO/NOTICE messages
   are suppressed. The remaining startup lines are `LOG` level, which always
   ranks above the threshold and cannot be silenced by this knob (see below).
+  The periodic `LOG: checkpoint starting/complete` reports (Postgres 15+
+  defaults to `log_checkpoints=on`, one pair every 5 minutes of activity) are
+  runtime output, not startup lines, so they had to go too:
+  `log_checkpoints=off` is passed on the `db` command line in
+  `docker-compose.yml`. Verified: an explicit `CHECKPOINT` produces no console
+  line.
 
 ## Accepted startup lines
 
@@ -96,6 +102,18 @@ email links); the user creates the value by hand in `.env`:
   request Host falls back to APP_URL. This allows testing the site from
   other machines (laptop, school computers) without editing APP_URL, while
   the allowlist prevents host-header poisoning of emailed links.
+
+## Accepted deviations
+
+- **Real mail values in the git history (final security review, user
+  decision).** The two initial commits (`dcd8723`, `cccc453`, both on
+  `origin/main`) contained the real `MAIL_FROM` address, `SMTP_HOST` and
+  `SMTP_USER` in `PROJECT_CONTEXT.md`. Every later revision is clean:
+  the working tree contains no real value, `.env` was never committed and is
+  git-ignored. The values in the history are the sending address and its
+  SMTP host/login — no password — and they appear in every email the app
+  sends anyway. Accepted rather than rewriting pushed history: private
+  repository, school project. The password itself never leaked.
 
 ## Internal overridable constants (no `.env` entry needed)
 
