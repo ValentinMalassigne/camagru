@@ -2,7 +2,7 @@
 
 Ordered plan for the whole project. The agent follows this order and ticks the boxes as work advances.
 
-**Current step:** Phase 6 (full compatibility pass) — every page and flow retested in Firefox 41 and Chrome 46 in the VM
+**Current step:** Phase 7 checkpoint closed — **the mandatory part is finished**. Phases 8 (SmtpMailer) and 9 (bonuses) are optional and only start on the user's explicit go-ahead.
 
 ## Rules for ticking
 
@@ -143,20 +143,20 @@ Ordered plan for the whole project. The agent follows this order and ticks the b
 
 ## Phase 6 — Full compatibility pass
 
-- [ ] **(you)** Every page and flow retested in Firefox 41 and Chrome 46 in the VM
-- [ ] Failures fixed with workarounds; `COMPATIBILITY.md` up to date with statuses
-- [ ] Any security item touched by a fix re-checked
-- [ ] Checkpoint
+- [x] **(you)** Every page and flow retested in Firefox 41 and Chrome 46 in the VM — full list passed, no issues reported
+- [x] Failures fixed with workarounds; `COMPATIBILITY.md` up to date with statuses — nothing failed, entries and statuses unchanged (all `fixed`)
+- [x] Any security item touched by a fix re-checked — nothing changed during the pass
+- [x] Checkpoint
 
 ## Phase 7 — Final validation
 
-- [ ] Fresh clone + hand-made `.env` + `docker compose up --build` works. (Wipe the DB volume only with the user's approval.)
-- [ ] Spec section 13 checked line by line
-- [ ] Logs and consoles clean; unavoidable startup lines listed in `NOTES.md`
-- [ ] `git status` and history checked: no `.env` and no secrets
-- [ ] `NOTES.md` complete and `COMPATIBILITY.md` up to date
-- [ ] **(you)** Peer-evaluation rehearsal with two accounts, including the self-comment option
-- [ ] Checkpoint. **The mandatory part is finished.**
+- [x] Fresh clone + hand-made `.env` + `docker compose up --build` works. (Wipe the DB volume only with the user's approval.) — verified on a throwaway clone (its own volumes; the user's data untouched): all pages 200, editor auth guard works, empty-gallery state renders, all 5 tables auto-created from the empty DB, console shows only the accepted first-start banner
+- [x] Spec section 13 checked line by line
+- [x] Logs and consoles clean; unavoidable startup lines listed in `NOTES.md` — the two extra first-start lines (initdb locale probe, un-silenceable, lever tried) are now in NOTES.md
+- [x] `git status` and history checked: no `.env` and no secrets — HEAD clean; only the three accepted mail values in history (user decision A, NOTES.md); the passwords never leaked anywhere
+- [x] `NOTES.md` complete and `COMPATIBILITY.md` up to date
+- [x] **(you)** Peer-evaluation rehearsal with two accounts, including the self-comment option — ran by the user, no issues
+- [x] Checkpoint. **The mandatory part is finished.**
 
 ---
 
@@ -213,4 +213,7 @@ Blockers, questions for the user and decisions taken. One line each, newest last
 - Phase 5 started: the mandatory part being complete, the final security review (spec section 9) runs first, per the workflow.
 - Phase 5, review method: all evaluator-style attacks were run server-side with curl against the running stack (a throwaway account and test rows were created for them and fully removed afterwards); the checklist items that need a browser stay for the user's VM pass. One finding was fixed on the spot: Postgres `log_checkpoints` (default on in Postgres 15+) wrote `LOG: checkpoint starting/complete` pairs to the console every 5 minutes of activity — runtime output, so `log_checkpoints=off` was added to the `db` command in `docker-compose.yml` (see NOTES.md).
 - Phase 5, open finding — real mail values in git history: the two initial commits (`dcd8723`, `cccc453`, both on `origin/main`) contained the real `MAIL_FROM` address, `SMTP_HOST` and `SMTP_USER` in `PROJECT_CONTEXT.md`. They were scrubbed from later revisions, so `HEAD` and the working tree are clean, but the values remain in the pushed history. Removing them needs a history rewrite (filter-repo + force-push to `origin/main`); decision pending with the user. The "no real secret in any committed file" box stays unticked until this is decided.
-- Phase 5, closure (user decision A): the history values are accepted, not rewritten — no password among them, private repo, school project, and the sending address/host appear in every outgoing mail anyway. Deviation documented in NOTES.md ("Accepted deviations"). The user confirmed the container console stays clean during browser use. Phase 5 checkpoint closed..
+- Phase 5, closure (user decision A): the history values are accepted, not rewritten — no password among them, private repo, school project, and the sending address/host appear in every outgoing mail anyway. Deviation documented in NOTES.md ("Accepted deviations"). The user confirmed the container console stays clean during browser use. Phase 5 checkpoint closed.
+- Phase 7: fresh-clone validation run on a throwaway clone in /tmp (own compose project → own volumes; the user's stack and data untouched, stopped only for the port, then restored). Empty DB: schema auto-created; pages and auth guards work; the empty-gallery state rendered for the first time (the one phase 4 path the running site never showed).
+- Phase 7: two more first-start lines accepted in NOTES.md (`sh: locale: not found` + `WARNING: no usable system locales were found` from initdb on Alpine). `POSTGRES_INITDB_ARGS=--no-locale` was tried on a second throwaway clone and does not silence them (and would switch the cluster to the C locale anyway); a custom image is out of proportion for first-start-only output. `log_checkpoints=off` (phase 5 fix) re-verified on both fresh clones: no checkpoint lines.
+- Phase 7, closure: the user ran the peer-evaluation rehearsal with two accounts (including the self-comment notification option) with no issues; the throwaway test clones and their volumes were fully removed with the user's approval (only the main stack and its volumes remain). **The mandatory part is finished.**.

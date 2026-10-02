@@ -67,7 +67,16 @@ They appear once on start and never again while the app is running.
 - `db`: `LOG: database system was shut down at ...`
 - `db`: `LOG: database system is ready to accept connections`
 - `db`: (first start only) the initdb banner and `CREATE DATABASE` output from
-  the postgres image's first-run initialization.
+  the postgres image's first-run initialization. Two lines inside that banner
+  deserve their own mention, listed after trying to silence them: `sh: locale:
+  not found` followed by `WARNING: no usable system locales were found`.
+  Source: initdb (inside the official image) probing for the `locale` tool,
+  which Alpine does not ship. Tried and rejected:
+  `POSTGRES_INITDB_ARGS="--no-locale"` (the cluster then uses the C locale,
+  but initdb still probes and prints both lines, verified on a throwaway
+  clone), and rebuilding a custom postgres image with locale tooling is out
+  of proportion for two first-start-only lines. Accepted: first start of a
+  new volume only, never at request time.
 - `db`: `PostgreSQL Database directory appears to contain a database; Skipping
   initialization` — printed by the official image's entrypoint script on
   every start of an existing data volume (not by the server, so
