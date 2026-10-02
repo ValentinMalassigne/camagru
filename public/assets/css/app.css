@@ -355,6 +355,63 @@ a.gallery-pagination__link:hover {
     resize: vertical;
 }
 
+/* --- Bonuses (phase 9) --------------------------------------------------- */
+/* Live overlay preview: the canvas sits exactly on top of the video box,
+   redrawn by editor.js; it never takes clicks away from the page. */
+.editor__preview {
+    position: relative;
+}
+
+.editor__overlay-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* Social share links: plain anchor buttons, no icons, no script. */
+.image-share {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.image-share__label {
+    font-weight: 600;
+    margin-right: 10px;
+}
+
+.image-share__link {
+    font-size: 13px;
+    padding: 5px 10px;
+    margin-right: 8px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    color: #555;
+}
+
+.image-share__link:hover {
+    border-color: #2a6;
+    color: #2a6;
+    text-decoration: none;
+}
+
+/* Short status line next to the like button and under the comment form
+   (filled by image.js after an AJAX answer). */
+.image-view__status {
+    margin-left: 12px;
+    font-size: 13px;
+    color: #9b1c1c;
+}
+
+.comments__form + .image-view__status {
+    margin: 0 0 16px;
+}
+
 /* --- Generic error page ---------------------------------------------- */
 .page--error {
     text-align: center;

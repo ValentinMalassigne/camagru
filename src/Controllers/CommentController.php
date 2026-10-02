@@ -29,6 +29,7 @@ use App\Core\Response;
 use App\Core\Session;
 use App\Core\SiteUrl;
 use App\Core\Validator;
+use App\Core\View;
 use App\Models\Comment;
 use App\Models\Image;
 use App\Models\User;
@@ -43,12 +44,24 @@ class CommentController
      * POST /images/{id}/comments — validate and store a comment, then
      * redirect back to the picture.
      *
+     * The same request serves two callers: a plain form POST (no JavaScript)
+     * gets a flash message and a redirect, an XHR (X-Requested-With, sent by
+     * image.js for the AJAX bonus) gets JSON — the rendered comment on
+     * success (server-side partial, so escaping stays on the server), the
+     * validation error with status 422 otherwise. Authentication, CSRF and
+     * the author notification are identical in both modes.
+     *
      * @param array<string, string> $params
      */
     public function store(Request $request, array $params = []): Response
     {
+        $wantsJson = $request->header('X-Requested-With') === 'XMLHttpRequest';
+
         $user = Auth::user();
         if ($user === null) {
+            if ($wantsJson) {
+                return Response::json(['error' => 'Please log in to comment.'], 401);
+            }
             Session::flash('error', 'Please log in to comment.');
             return Response::redirect('/login');
         }
@@ -61,6 +74,9 @@ class CommentController
         }
 
         if (!Csrf::verify($request)) {
+            if ($wantsJson) {
+                return Response::json(['error' => 'Your session expired. Please reload the page and try again.'], 403);
+            }
             Session::flash('error', 'Your session expired. Please try again.');
             return Response::redirect('/images/' . (int) $image['id']);
         }
@@ -70,6 +86,9 @@ class CommentController
         $validator->required('body', $body);
         $validator->maxLength('body', $body, self::MAX_BODY_LENGTH);
         if ($validator->fails()) {
+            if ($wantsJson) {
+                return Response::json(['error' => $validator->errors()['body']], 422);
+            }
             // The body is not re-filled on purpose (the field is the last
             // thing before the button, an over-limit text is rare); the
             // flash names the exact problem.
@@ -79,6 +98,22 @@ class CommentController
 
         Comment::create((int) $image['id'], (int) $user['id'], $body);
         $this->notifyAuthor($request, $image, $user, $body);
+
+        if ($wantsJson) {
+            return Response::json([
+                // The comment is rendered by the same partial as on the
+                // page, so the inserted entry is identical to the others
+                // and escaping stays server-side.
+                'html'  => View::renderPartial('partials/comment.php', [
+                    'comment' => [
+                        'username' => (string) $user['username'],
+                        'date'     => date('j M Y, H:i'), // same format as GalleryController
+                        'body'     => $body,
+                    ],
+                ]),
+                'count' => Comment::countByImage((int) $image['id']),
+            ]);
+        }
 
         Session::flash('success', 'Your comment has been posted.');
         return Response::redirect('/images/' . (int) $image['id']);

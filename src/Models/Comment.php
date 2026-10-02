@@ -30,6 +30,19 @@ class Comment
     }
 
     /**
+     * Number of comments of one image, used by the AJAX response (the "N"
+     * next to the comment form) and the detail page counts.
+     */
+    public static function countByImage(int $imageId): int
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT COUNT(*) FROM comments WHERE image_id = ?'
+        );
+        $stmt->execute([$imageId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
      * All comments of one image, oldest first (natural reading order),
      * with each author's username for display. Everything is escaped with
      * e() in the view.

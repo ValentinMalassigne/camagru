@@ -11,6 +11,10 @@
  * - when there is no webcam, no permission or no getUserMedia, show a
  *   friendly message instead of the preview and leave the upload form
  *   working. Handled cases produce no console noise.
+ * - live overlay preview (bonus): once an overlay is selected and the
+ *   webcam runs, draw the overlay over the video frames on a canvas that
+ *   sits on top of the video, mirroring the server's compositing. The
+ *   server still produces the final saved image; this is only a preview.
  *
  * Written in ES5 style: var and function only, no arrow functions, no
  * template literals, no async/await.
@@ -32,6 +36,10 @@
     var sideList = document.getElementById('editor-side-list');
     var csrfToken = form.querySelector('input[name="_csrf_token"]').value;
     var hasStream = false;
+    var overlayCanvas = document.getElementById('editor-overlay-canvas');
+    var overlayContext = overlayCanvas ? overlayCanvas.getContext('2d') : null;
+    var overlayImage = null;
+    var previewTimer = null;
 
     /* --- Overlay selection gates the two buttons ----------------------- */
 
@@ -56,7 +64,71 @@
 
     // Change events from the radios bubble up to the form.
     form.addEventListener('change', refreshButtons);
+    form.addEventListener('change', selectOverlayPreview);
     refreshButtons();
+
+    /* --- Live overlay preview (bonus) ----------------------------------- */
+
+    /**
+     * Load the PNG of the overlay currently selected so the preview loop
+     * can draw it over the video frames. The source comes from the
+     * data-overlay-src attribute rendered by the server (the same overlay
+     * whitelist the capture uses), never from free-form client input.
+     */
+    function selectOverlayPreview() {
+        var radio = selectedOverlay();
+        if (!radio || !overlayContext) {
+            return;
+        }
+        var image = new Image();
+        image.onload = function () {
+            overlayImage = image;
+            startOverlayPreview();
+        };
+        image.src = radio.getAttribute('data-overlay-src');
+    }
+
+    /**
+     * Start the preview loop once both the webcam and an overlay are
+     * available (whichever arrives first; the other one starts it). The
+     * loop redraws ten times per second (setInterval stays inside the safe
+     * API subset), mirroring the server's compositing: the overlay is
+     * scaled to fit inside the frame and centered on it.
+     */
+    function startOverlayPreview() {
+        if (previewTimer !== null || !hasStream || !overlayImage || !overlayContext) {
+            return;
+        }
+        overlayCanvas.className = overlayCanvas.className.replace(' is-hidden', '');
+        previewTimer = setInterval(drawOverlayPreview, 100);
+    }
+
+    /**
+     * One preview frame: the current video frame, then the overlay on top,
+     * fit inside the frame and centered (the same math as ImageComposer).
+     */
+    function drawOverlayPreview() {
+        if (!video.videoWidth || !overlayImage) {
+            return;
+        }
+        var width = video.videoWidth;
+        var height = video.videoHeight;
+        if (overlayCanvas.width !== width || overlayCanvas.height !== height) {
+            overlayCanvas.width = width;
+            overlayCanvas.height = height;
+        }
+        overlayContext.drawImage(video, 0, 0, width, height);
+        var scale = Math.min(
+            width / overlayImage.naturalWidth,
+            height / overlayImage.naturalHeight
+        );
+        var newWidth = Math.max(1, Math.round(overlayImage.naturalWidth * scale));
+        var newHeight = Math.max(1, Math.round(overlayImage.naturalHeight * scale));
+        overlayContext.drawImage(overlayImage,
+            Math.floor((width - newWidth) / 2),
+            Math.floor((height - newHeight) / 2),
+            newWidth, newHeight);
+    }
 
     /* --- Webcam wrapper and stream attachment --------------------------- */
 
@@ -135,6 +207,8 @@
     getWebcam(function (stream) {
         attachStream(stream);
         hasStream = true;
+        // The overlay may already be selected: the preview can start now.
+        startOverlayPreview();
     }, function () {
         showNoWebcam();
     });

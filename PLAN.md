@@ -2,7 +2,7 @@
 
 Ordered plan for the whole project. The agent follows this order and ticks the boxes as work advances.
 
-**Current step:** Phase 7 checkpoint closed — **the mandatory part is finished**. Phases 8 (SmtpMailer) and 9 (bonuses) are optional and only start on the user's explicit go-ahead.
+**Current step:** Phase 9 checkpoint closed — **the project is finished** (mandatory part validated, four bonuses added and validated; animated GIF and SmtpMailer skipped by user decision).
 
 ## Rules for ticking
 
@@ -177,13 +177,13 @@ Only after Phase 7 is fully checked, and only if the user confirms.
 
 Only after Phase 7 is fully checked, and only for the bonuses the user picks. Image processing stays server side. Each bonus gets its own security check and VM test, then a checkpoint.
 
-- [ ] **(you)** Bonuses chosen: ________
-- [ ] AJAXify likes, comments and editor actions
-- [ ] Live overlay preview on the webcam
-- [ ] Infinite pagination of the gallery
-- [ ] Sharing on social networks
-- [ ] Animated GIF (server side)
-- [ ] Checkpoint
+- [x] **(you)** Bonuses chosen: AJAX likes/comments, live overlay preview, infinite pagination, social sharing. Animated GIF skipped (user decision: GD cannot encode animated GIFs).
+- [x] AJAXify likes, comments and editor actions — likes and comments now go through XHR (editor actions already were, since phase 3); plain POST + redirect kept as the no-JavaScript fallback
+- [x] Live overlay preview on the webcam
+- [x] Infinite pagination of the gallery
+- [x] Sharing on social networks
+- [ ] ~~Animated GIF (server side)~~ — skipped by user decision
+- [x] Checkpoint. **(you)** VM smoke-test of the bonuses passed in Firefox 41 and Chrome 46; no compatibility problems reported
 
 ---
 
@@ -216,4 +216,9 @@ Blockers, questions for the user and decisions taken. One line each, newest last
 - Phase 5, closure (user decision A): the history values are accepted, not rewritten — no password among them, private repo, school project, and the sending address/host appear in every outgoing mail anyway. Deviation documented in NOTES.md ("Accepted deviations"). The user confirmed the container console stays clean during browser use. Phase 5 checkpoint closed.
 - Phase 7: fresh-clone validation run on a throwaway clone in /tmp (own compose project → own volumes; the user's stack and data untouched, stopped only for the port, then restored). Empty DB: schema auto-created; pages and auth guards work; the empty-gallery state rendered for the first time (the one phase 4 path the running site never showed).
 - Phase 7: two more first-start lines accepted in NOTES.md (`sh: locale: not found` + `WARNING: no usable system locales were found` from initdb on Alpine). `POSTGRES_INITDB_ARGS=--no-locale` was tried on a second throwaway clone and does not silence them (and would switch the cluster to the C locale anyway); a custom image is out of proportion for first-start-only output. `log_checkpoints=off` (phase 5 fix) re-verified on both fresh clones: no checkpoint lines.
-- Phase 7, closure: the user ran the peer-evaluation rehearsal with two accounts (including the self-comment notification option) with no issues; the throwaway test clones and their volumes were fully removed with the user's approval (only the main stack and its volumes remain). **The mandatory part is finished.**.
+- Phase 7, closure: the user ran the peer-evaluation rehearsal with two accounts (including the self-comment notification option) with no issues; the throwaway test clones and their volumes were fully removed with the user's approval (only the main stack and its volumes remain). **The mandatory part is finished.**
+- Phase 8 skipped by user decision (msmtp stays the mail driver; SmtpMailer not implemented).
+- Phase 9, design: every bonus is a progressive enhancement — with JavaScript off, all flows work exactly as before (like/comment forms POST and redirect; gallery pagination links remain). All new client code is ES5 XHR (COMPATIBILITY.md entry 5 pattern reused; no fetch anywhere), all AJAX HTML fragments are rendered by the server through partials (`partials/gallery_items.php`, `partials/comment.php`) so escaping stays in `e()` on the server; the JSON modes share the exact auth/CSRF checks with the plain modes (401/403 JSON answers instead of redirects for XHR callers).
+- Phase 9: `editor.js` changed (live overlay preview) → version bumped to `?v=3` in the editor view; `image.js?v=1` and `gallery.js?v=1` are new versioned includes. Infinite pagination keeps the pagination nav as the fallback: gallery.js hides it while scrolling works and restores it if a load ever fails.
+- Phase 9: the boxes are ticked for code in place and server-side verification (curl of every XHR mode: gallery pages 1-2 JSON, like on/off, comment with escaping, 401/403/422 rejection paths, non-XHR regressions); the Firefox 41 / Chrome 46 validation happens with the checkpoint, per the phase 3/4 convention.
+- Phase 9, closure: the full bonus smoke-test list passed in Firefox 41 and Chrome 46 with no compatibility problems (no new COMPATIBILITY.md entries — the ES5/XHR pattern held). **Project finished**: the mandatory part is validated end to end, plus the four bonuses..

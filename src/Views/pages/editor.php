@@ -17,6 +17,10 @@
         <section class="editor__main">
             <div class="editor__preview">
                 <video id="editor-video" class="editor__video" autoplay muted></video>
+                <!-- Live overlay preview (bonus): editor.js draws the selected
+                     overlay over the video frames here, mirroring the server's
+                     compositing. Hidden until an overlay is selected. -->
+                <canvas id="editor-overlay-canvas" class="editor__overlay-canvas is-hidden" width="640" height="480"></canvas>
                 <p id="editor-message" class="editor__message is-hidden">
                     The webcam is not available (or permission was refused).
                     You can still upload a picture below.
@@ -33,7 +37,7 @@
                             <li class="editor-overlays__item">
                                 <label class="editor-overlays__label">
                                     <input class="editor-overlays__radio" type="radio" name="overlay"
-                                           value="<?= (int) $id ?>" required>
+                                           value="<?= (int) $id ?>" data-overlay-src="/assets/overlays/<?= e_attr($filename) ?>" required>
                                     <img class="editor-overlays__img" src="/assets/overlays/<?= e_attr($filename) ?>"
                                          alt="Overlay: <?= e(basename((string) $filename, '.png')) ?>">
                                 </label>
@@ -79,5 +83,5 @@
     <!-- Versioned include: /assets/ is cached for 1 hour, so every change to
          editor.js MUST bump this version or the browsers keep the old file
          (COMPATIBILITY.md entry 5 was masked this way during testing). -->
-    <script src="/assets/js/editor.js?v=2"></script>
+    <script src="/assets/js/editor.js?v=3"></script>
 </section>

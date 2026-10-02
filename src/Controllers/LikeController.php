@@ -27,17 +27,30 @@ class LikeController
     /**
      * POST /images/{id}/like — add or remove the current user's like.
      *
+     * The same request serves two callers: a plain form POST (no JavaScript)
+     * gets a flash message and a redirect, an XHR (X-Requested-With, sent by
+     * image.js for the AJAX bonus) gets JSON with the new state and count.
+     * Authentication and CSRF are checked identically in both modes.
+     *
      * @param array<string, string> $params
      */
     public function toggle(Request $request, array $params = []): Response
     {
+        $wantsJson = $request->header('X-Requested-With') === 'XMLHttpRequest';
+
         $user = Auth::user();
         if ($user === null) {
+            if ($wantsJson) {
+                return Response::json(['error' => 'Please log in to like pictures.'], 401);
+            }
             Session::flash('error', 'Please log in to like pictures.');
             return Response::redirect('/login');
         }
 
         if (!Csrf::verify($request)) {
+            if ($wantsJson) {
+                return Response::json(['error' => 'Your session expired. Please reload the page and try again.'], 403);
+            }
             Session::flash('error', 'Your session expired. Please try again.');
             return Response::redirect('/images/' . (int) ($params['id'] ?? '0'));
         }
@@ -50,6 +63,14 @@ class LikeController
         }
 
         $liked = Like::toggle((int) $user['id'], (int) $image['id']);
+
+        if ($wantsJson) {
+            return Response::json([
+                'liked' => $liked,
+                'count' => Like::countByImage((int) $image['id']),
+            ]);
+        }
+
         Session::flash('success', $liked ? 'You liked this picture.' : 'You unliked this picture.');
         return Response::redirect('/images/' . (int) $image['id']);
     }

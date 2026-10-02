@@ -1,8 +1,11 @@
 <?php
-// Public gallery (spec section 4.3): every picture, newest first, 6 per
-// page, with the author and the like and comment counts. Visible to
-// everyone; the counts are plain text here, the actions live on the detail
-// page. Markup only; every value is escaped with e().
+// Public gallery (spec section 4.3 + infinite-scroll bonus): every picture,
+// newest first, 6 per page, with the author and the like and comment counts.
+// The cards are rendered by partials/gallery_items.php, shared with the
+// infinite-scroll JSON response. With JavaScript, gallery.js loads further
+// pages as you scroll and hides the pagination nav; without it, the
+// Previous/Next links below remain the fallback. Markup only; every value is
+// escaped with e().
 /** @var string $title */
 /** @var array<int, array<string, mixed>> $images The current page's pictures. */
 /** @var int $page Current page number (1-based). */
@@ -16,27 +19,13 @@
             No pictures yet. Register, log in and head to the editor to post the first one!
         </p>
     <?php else: ?>
-        <ul class="gallery__grid">
-            <?php foreach ($images as $image): ?>
-                <li class="gallery__item">
-                    <a class="gallery__link" href="/images/<?= (int) $image['id'] ?>">
-                        <img class="gallery__img" src="/uploads/<?= e_attr($image['filename']) ?>"
-                             alt="Picture by <?= e((string) $image['username']) ?>">
-                    </a>
-                    <p class="gallery__meta">
-                        <a class="gallery__author" href="/images/<?= (int) $image['id'] ?>"><?= e((string) $image['username']) ?></a>
-                        <span class="gallery__counts">
-                            <?= (int) $image['like_count'] ?> like<?= ((int) $image['like_count'] === 1) ? '' : 's' ?>
-                            /
-                            <?= (int) $image['comment_count'] ?> comment<?= ((int) $image['comment_count'] === 1) ? '' : 's' ?>
-                        </span>
-                    </p>
-                </li>
-            <?php endforeach; ?>
+        <ul id="gallery-grid" class="gallery__grid" data-page="<?= (int) $page ?>"
+            data-total-pages="<?= (int) $totalPages ?>">
+            <?= \App\Core\View::renderPartial('partials/gallery_items.php', ['images' => $images]) ?>
         </ul>
 
         <?php if ($totalPages > 1): ?>
-            <nav class="gallery-pagination">
+            <nav id="gallery-pagination" class="gallery-pagination">
                 <?php if ($page > 1): ?>
                     <a class="gallery-pagination__link" href="/?page=<?= $page - 1 ?>">Previous</a>
                 <?php else: ?>
@@ -51,4 +40,8 @@
             </nav>
         <?php endif; ?>
     <?php endif; ?>
+
+    <!-- Versioned include: /assets/ is cached for 1 hour, so every change to
+         gallery.js MUST bump this version (same rule as editor.js). -->
+    <script src="/assets/js/gallery.js?v=1"></script>
 </section>
