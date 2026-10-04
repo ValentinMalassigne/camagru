@@ -5,8 +5,10 @@ Justification of non-obvious tools and accepted (un-silenceable) startup lines.
 ## Non-obvious tools used
 
 - **msmtp** — external binary (not PHP) that relays PHP `mail()` to the SMTP
-  relay. Required by spec section 6 for phase 1. Installed in the php image;
-  config generated at start by `entrypoint.sh` from `.env`.
+  relay. Required by spec section 6. Installed in the php image;
+  config generated at start by `entrypoint.sh` from `.env`. TLS to the relay
+  is handled by msmtp itself (system binary, its own TLS), so no PHP network
+  extension is involved.
 - **GD** — bundled PHP extension for decoding, compositing and PNG
   re-encoding of images (server side). Built with freetype + jpeg + png support.
   Used from phase 3 by `ImageComposer`: `imagecreatefromstring` to decode,
@@ -15,8 +17,6 @@ Justification of non-obvious tools and accepted (un-silenceable) startup lines.
   the overlay, `imagepng` to save.
 - **pdo_pgsql** — bundled PHP extension for PostgreSQL access via PDO. All
   queries use bound parameters.
-- **openssl** — bundled PHP extension; required later for the phase-2 SMTP
-  client (`ssl://`, STARTTLS). Present in the image already.
 - **fileinfo (`finfo`)** — bundled PHP extension for real MIME detection of
   uploads (used from phase 3 onward): `finfo` reads the uploaded content
   with `FILEINFO_MIME_TYPE`, so a lying extension or filename is ignored.
@@ -94,7 +94,7 @@ per the console output policy, with their source.
   "Password fields present in a form with an insecure (http://) form action".
   Source: Firefox's own insecure-password heuristic, emitted for every
   `<input type="password">` served over HTTP. The spec serves the site on
-  `http://localhost:8080` with no TLS, so the only fix (HTTPS) is out of
+  `http://localhost` (port 80) with no TLS, so the only fix (HTTPS) is out of
   scope. Appears on the register page, and later on every page with a
   password field (login, reset, account). Chrome 46 does not emit it.
   Logged in COMPATIBILITY.md as entry 4.

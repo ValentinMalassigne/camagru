@@ -7,3 +7,5 @@ uploads/
 # Log files (app, php, nginx, msmtp — written to a volume, never the repo)
 *.log
 logs/
+
+en.subject.pdf

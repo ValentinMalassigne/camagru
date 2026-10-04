@@ -49,7 +49,11 @@
     </main>
 
     <footer class="site-footer">
-        <p>Camagru &mdash; &eacute;cole 42 project</p>
+        <p>
+            Camagru &mdash; &eacute;cole 42 project &mdash;
+            <a class="site-footer__link" href="https://github.com/ValentinMalassigne/">GitHub</a>
+            &mdash; Made by <a class="site-footer__link" href="https://valentinmalassigne.fr/">Valentin Malassign&eacute;</a>
+        </p>
     </footer>
 </body>
 </html>

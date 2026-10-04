@@ -1,9 +1,8 @@
 <?php
 // AppMailer: the domain-level mail API used by controllers. Every outgoing
 // email of the application goes through one of its methods, which render the
-// matching template in src/Views/emails/ and delegate to the Mailer
-// implementation chosen by MailerFactory. Controllers never touch mail()
-// or SMTP details.
+// matching template in src/Views/emails/ and delegate to MsmtpMailer.
+// Controllers never touch mail() or SMTP details.
 
 declare(strict_types=1);
 
@@ -14,11 +13,11 @@ use App\Core\View;
 
 class AppMailer
 {
-    private Mailer $mailer;
+    private MsmtpMailer $mailer;
 
-    public function __construct(?Mailer $mailer = null)
+    public function __construct()
     {
-        $this->mailer = $mailer ?? MailerFactory::fromEnv();
+        $this->mailer = new MsmtpMailer();
     }
 
     /**

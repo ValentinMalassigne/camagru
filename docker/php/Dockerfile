@@ -20,7 +20,7 @@ RUN apk add --no-cache \
     && apk del .build-deps
 
 # Confirm the required extensions are present (fails the build if missing).
-RUN php -m | grep -E '^(gd|pdo_pgsql|fileinfo|mbstring|openssl)$'
+RUN php -m | grep -E '^(gd|pdo_pgsql|fileinfo|mbstring)$'
 
 # Application code is mounted at runtime; set the working directory.
 WORKDIR /var/www/camagru

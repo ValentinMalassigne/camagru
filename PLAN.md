@@ -54,7 +54,7 @@ Ordered plan for the whole project. The agent follows this order and ticks the b
 - [x] `users` table added to `db/schema.sql`
 - [x] Register form with server-side validation (email, username 3–20 `[A-Za-z0-9_]`, password 8+ with lowercase, uppercase, digit); username and email unique, case-insensitive
 - [x] Password stored with `password_hash`; confirmation token random and stored hashed
-- [ ] Confirmation email sent; `/verify?token=` activates the account; login refused until verified
+- [x] Confirmation email sent; `/verify?token=` activates the account; login refused until verified
 - [x] Mail failures logged to a file and never break the request
 - [x] **(you)** A real confirmation email was received through the SMTP relay (Gmail sorts it as spam: sender-reputation issue, see NOTES.md)
 - [x] Checkpoint

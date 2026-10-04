@@ -83,5 +83,5 @@
     <!-- Versioned include: /assets/ is cached for 1 hour, so every change to
          editor.js MUST bump this version or the browsers keep the old file
          (COMPATIBILITY.md entry 5 was masked this way during testing). -->
-    <script src="/assets/js/editor.js?v=3"></script>
+    <script src="/assets/js/editor.js?v=4"></script>
 </section>

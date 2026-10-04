@@ -197,7 +197,7 @@
         if (!isSecureOrigin()) {
             setText(message,
                 'The webcam is only available on a secure origin. Open the ' +
-                'editor at http://localhost:8080 (or serve the site over ' +
+                'editor at http://localhost (or serve the site over ' +
                 'HTTPS). You are currently viewing this page from "' +
                 location.hostname + '". You can still upload a picture below.');
         }

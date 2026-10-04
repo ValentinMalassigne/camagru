@@ -135,6 +135,17 @@ p {
     font-size: 14px;
 }
 
+/* Footer links: muted like the footer text, underlined so they stay
+   recognizable as links despite the grey color. */
+.site-footer__link {
+    color: #777;
+    text-decoration: underline;
+}
+
+.site-footer__link:hover {
+    color: #555;
+}
+
 /* --- Flash messages --------------------------------------------------- */
 .flash-list {
     margin-bottom: 16px;

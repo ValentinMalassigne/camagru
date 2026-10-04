@@ -1,6 +1,6 @@
 #!/bin/sh
 # Camagru php container entrypoint.
-# 1. Generate /etc/msmtprc from env vars (phase 1 msmtp driver).
+# 1. Generate /etc/msmtprc from env vars (msmtp mail driver).
 # 2. Run the DB setup (waits for the DB, creates missing tables).
 # 3. Exec php-fpm.
 #

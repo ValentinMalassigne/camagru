@@ -1,5 +1,5 @@
 # Camagru — docker compose stack.
-# Only nginx publishes a port (8080). The DB is internal. Uploads live in a named
+# Only nginx publishes a port (80). The DB is internal. Uploads live in a named
 # volume shared by php (read-write) and nginx (read-only). Logs go to a named
 # volume, never the container console.
 
@@ -55,7 +55,7 @@ services:
     depends_on:
       - php
     ports:
-      - "8080:80"
+      - "80:80"
     # Replace the main error_log (notice level -> stderr) with a file at
       # "error" level, so the "start worker process" startup notices stay out
       # of the container console. The entrypoint still runs; we exec nginx after.

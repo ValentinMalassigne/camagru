@@ -22,7 +22,7 @@ This spec is authoritative. Where it conflicts with your habits (frameworks, npm
 - **Security:** no plaintext passwords, no HTML/JS injection, no SQL injection, no unwanted file upload, no forged/foreign-form actions on private data.
 - **Deployment:** once the git-ignored `.env` has been created by hand, one command (`docker compose up --build`) must bring the whole site up from a fresh clone. If the database is not set up yet, it is set up automatically (section 10).
 - **Secrets:** all credentials and configuration live in a git-ignored `.env`, created by hand. **There is no `.env.example`.** No real value appears in any committed file. Never hardcode secrets.
-- **Browsers:** target Firefox >= 41 and Chrome >= 46 (subject minimum), and current versions must work too. The user tests regularly with Firefox 41 and Chrome 46 in a VM, the code follows the defensive coding rules of section 11, and every issue found is logged with its workaround in `COMPATIBILITY.md`. Serve on `http://localhost:8080` (`getUserMedia` works on localhost without HTTPS).
+- **Browsers:** target Firefox >= 41 and Chrome >= 46 (subject minimum), and current versions must work too. The user tests regularly with Firefox 41 and Chrome 46 in a VM, the code follows the defensive coding rules of section 11, and every issue found is logged with its workaround in `COMPATIBILITY.md`. Serve on `http://localhost/` port 80 (`getUserMedia` works on localhost without HTTPS).
 
 ## 2. Stack
 
@@ -34,7 +34,7 @@ This spec is authoritative. Where it conflicts with your habits (frameworks, npm
 | Web server | nginx + php-fpm |
 | Client | HTML, vanilla ES5-style JS (`getUserMedia`, `fetch`, `FormData`, canvas), see section 11 |
 | CSS | Plain hand-written CSS, mobile-first, flexbox layouts, no framework |
-| Email | Wrapper class (section 6): phase 1 `mail()` + msmtp, phase 2 own SMTP client |
+| Email | `mail()` relayed through msmtp (section 6) |
 | Containers | docker-compose: `nginx`, `php`, `db` |
 
 **Not used, do not add:** Tailwind, Bootstrap, Pure.css or any other CSS framework, `.env.example`, Mailpit/MailHog or any dev mail service, PHPMailer, Composer, React/Next/Nest, TypeScript, any JS or PHP dependency.
@@ -48,8 +48,7 @@ This spec is authoritative. Where it conflicts with your habits (frameworks, npm
 | `fileinfo` (`finfo`) | bundled extension | real MIME type detection of uploads |
 | `pdo` + `pdo_pgsql` | bundled extensions | database access |
 | `mbstring` | bundled extension | UTF-8 string length checks (comments) |
-| `openssl` | bundled extension | TLS for the phase-2 SMTP client (`ssl://`, STARTTLS) |
-| `msmtp` | external binary, not PHP | relays `mail()` to the SMTP server (phase 1) |
+| `msmtp` | external binary, not PHP | relays `mail()` to the SMTP server |
 
 Each bundled extension must be present in the php image (check with `php -m`, enable in the Dockerfile if missing).
 
@@ -80,7 +79,7 @@ camagru/
     ├── Models/             # User, Image, Comment, Like, PasswordReset
     ├── Services/
     │   ├── ImageComposer.php
-    │   └── Mail/           # Mailer (interface), MsmtpMailer, SmtpMailer, MailerFactory, MessageBuilder, AppMailer
+    │   └── Mail/           # MsmtpMailer, MessageBuilder, AppMailer
     └── Views/              # layout, pages, partials, emails
 ```
 
@@ -150,25 +149,15 @@ POST /images/{id}/comments   (auth, CSRF)
 
 All state-changing routes are POST and require a valid CSRF token. Single front controller (`public/index.php`), nginx `try_files $uri /index.php?$query_string`. Static files (`/favicon.ico`, `/assets/`, `/uploads/`) are served by nginx directly.
 
-## 6. Email architecture (critical: must be swappable)
+## 6. Email architecture
 
-All email sending goes through one abstraction. **No other code may call `mail()` or open SMTP sockets.**
+All email sending goes through two classes. **No other code may call `mail()`.**
 
-```php
-namespace App\Services\Mail;
-
-interface Mailer {
-    public function send(string $to, string $subject, string $htmlBody, ?string $textBody = null): bool;
-}
-```
-
-- `MsmtpMailer` (**phase 1, implement now**): builds headers via `MessageBuilder`, calls PHP `mail()`; PHP `sendmail_path` points to `msmtp -t`.
-- `SmtpMailer` (**phase 2, later**): pure PHP SMTP client using `stream_socket_client` (implicit TLS on 465 via `ssl://`, or STARTTLS on 587), `AUTH LOGIN`, dot-stuffing, response-code checks, timeouts. Same interface, no other change in the app.
-- `MailerFactory::fromEnv()` picks the driver from `MAIL_DRIVER=msmtp|smtp`.
+- `MsmtpMailer`: builds the MIME message via `MessageBuilder`, calls PHP `mail()`; PHP `sendmail_path` points to `msmtp -t`, which relays the message to the external SMTP server. There is no own SMTP client in PHP (user decision: the originally planned phase-2 SMTP client was dropped; delivery is always relayed by msmtp).
 - `MessageBuilder` (shared): strips CR/LF from every header value (header-injection protection), RFC 2047 UTF-8 subject encoding, `MIME-Version`, `Date`, `Message-ID`, `From`, base64 or quoted-printable body, `text/html; charset=UTF-8` (optionally `multipart/alternative`).
 - `AppMailer` exposes domain methods used by controllers: `sendVerification()`, `sendPasswordReset()`, `sendCommentNotification()`. Templates live in `src/Views/emails/`. All user content is escaped in HTML emails.
 
-**msmtp setup (phase 1):**
+**msmtp setup:**
 - Install `msmtp` and CA certificates in the php image.
 - `docker/php/entrypoint.sh` generates `/etc/msmtprc` from env vars at container start (mode `600`, owned by the php-fpm user), then runs the DB setup (section 10), then `exec php-fpm`.
 - Config: `tls on`, `tls_trust_file` set to the system CA bundle, `auth on`, `from`, `user`, `password`, and `logfile` pointing to a **file** (never the console). For port 465 use `tls_starttls off`; for 587 use STARTTLS.
@@ -238,7 +227,7 @@ PDO settings: `ERRMODE_EXCEPTION`, `ATTR_EMULATE_PREPARES = false`, `FETCH_ASSOC
 Once `.env` exists, `docker compose up --build` from a fresh clone must work, with no other manual step and no manual host-side permission fixes.
 
 - `php`: built from a PHP 8.x fpm image with `gd` (jpeg, png, freetype), `pdo_pgsql`, `msmtp`, CA certificates; custom `entrypoint.sh` and `php.ini`. The entrypoint (1) generates `/etc/msmtprc`, (2) runs `php bin/setup-db.php`, (3) `exec php-fpm`.
-- `nginx`: static files from `public/`, PHP via fastcgi to `php`, security headers, `/uploads/` alias, only this service publishes a port (`8080:80`).
+- `nginx`: static files from `public/`, PHP via fastcgi to `php`, security headers, `/uploads/` alias, only this service publishes a port (`80:80`).
 - `db`: `postgres` official image, named volume for data, healthcheck (`pg_isready`), no published port; `php` waits for it (`depends_on` with `service_healthy`). No `init.sql` mounted: the schema is handled by the setup script below.
 - Uploads live in a **named volume** shared by `php` (rw) and `nginx` (ro).
 
@@ -257,10 +246,9 @@ Once `.env` exists, `docker compose up --build` from a fresh clone must work, wi
 
 | Variable | Purpose | Secret |
 |---|---|---|
-| `APP_URL` | public base URL used in email links (`http://localhost:8080` locally) | no |
+| `APP_URL` | public base URL used in email links (`http://localhost` locally) | no |
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | database created by the postgres image | password |
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | connection settings used by php (`DB_HOST` is the compose service name; `DB_NAME/USER/PASSWORD` must match `POSTGRES_*`) | password |
-| `MAIL_DRIVER` | `msmtp` or `smtp` | no |
 | `MAIL_FROM`, `MAIL_FROM_NAME` | sender address and name | no |
 | `SMTP_HOST`, `SMTP_PORT` | SMTP relay (465 with `ssl`, 587 with `starttls`) | no |
 | `SMTP_SECURE` | `ssl` or `starttls` | no |
@@ -277,7 +265,7 @@ Once `.env` exists, `docker compose up --build` from a fresh clone must work, wi
 
 ### Compatibility: Firefox 41 and Chrome 46
 
-**How it is tested.** The user runs Firefox 41 and Chrome 46 in a VM and tests the project with them regularly: at the end of every feature, and once more in a full pass at the end (after the security review, before any bonus). The agent cannot run these browsers, so it never claims compatibility. After each feature it gives the user a short smoke-test list (pages load, narrow layout, clean console, the feature's flow) and waits for the result. Prefer a port forward so the VM sees the site as `http://localhost:8080` (a `getUserMedia` refusal on a non-localhost HTTP origin is tolerated, but the webcam path then cannot be validated).
+**How it is tested.** The user runs Firefox 41 and Chrome 46 in a VM and tests the project with them regularly: at the end of every feature, and once more in a full pass at the end (after the security review, before any bonus). The agent cannot run these browsers, so it never claims compatibility. After each feature it gives the user a short smoke-test list (pages load, narrow layout, clean console, the feature's flow) and waits for the result. Prefer a port forward so the VM sees the site as `http://localhost` (a `getUserMedia` refusal on a non-localhost HTTP origin is tolerated, but the webcam path then cannot be validated).
 
 **Defensive coding rules** (a safe subset; `COMPATIBILITY.md` refines it as issues are found):
 - JS is written in ES5 style: `var` and `function`; no arrow functions, template literals, `let` or `class`, and no newer syntax (spread, destructuring, `async/await`, optional chaining).
@@ -311,7 +299,7 @@ AJAXify likes/comments and editor actions; infinite pagination; live overlay pre
 - [ ] Comment notification email sent by default, opt-out in account settings; self-comment notification option (default off) works
 - [ ] Users can delete only their own images
 - [ ] Final security review done: all items in section 9 verified (CSRF, XSS, SQLi, uploads, sessions)
-- [ ] All emails go through `Mailer`; switching `MAIL_DRIVER` is the only change needed for phase 2
+- [ ] All emails go through `AppMailer`/`MsmtpMailer`; no other code calls `mail()`
 - [ ] No forbidden dependency anywhere (section 1), no CSS framework, no `.env.example`, `.env` git-ignored, no real value in any committed file
 - [ ] Firefox 41 and Chrome 46 smoke-tested by the user in the VM after each feature, plus a full final pass on every page and flow
 - [ ] `COMPATIBILITY.md` up to date: every issue found has its workaround and status
