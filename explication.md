@@ -749,7 +749,6 @@ testable et l'accès est centralisé). Méthodes :
 - `header($name)` : lit un en-tête HTTP. nginx/fastcgi transforme les en-têtes en
   variables `HTTP_X_REQUESTED_WITH` (d'où la recherche `HTTP_` + nom en majuscules,
   tirets en underscores) ;
-- `isPost()`.
 
 ### `Response.php` — la réponse
 

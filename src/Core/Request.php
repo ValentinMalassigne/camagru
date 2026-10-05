@@ -83,14 +83,6 @@ class Request
     }
 
     /**
-     * Get the raw POST body (used for JSON or file payloads).
-     */
-    public function body(): string
-    {
-        return file_get_contents('php://input') ?: '';
-    }
-
-    /**
      * Get an uploaded file entry from $_FILES, or null.
      *
      * @return array<string, mixed>|null
@@ -117,13 +109,5 @@ class Request
             return $this->server[$bareKey];
         }
         return null;
-    }
-
-    /**
-     * Is this a POST (or other state-changing) request?
-     */
-    public function isPost(): bool
-    {
-        return $this->method === 'POST';
     }
 }

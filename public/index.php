@@ -8,7 +8,6 @@ require __DIR__ . '/../src/bootstrap.php';
 
 use App\Core\Auth;
 use App\Core\Request;
-use App\Core\Router;
 use App\Core\Response;
 use App\Core\View;
 use App\Core\Csrf;

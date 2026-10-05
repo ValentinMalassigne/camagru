@@ -74,12 +74,4 @@ class Auth
         }
         return self::$user;
     }
-
-    /**
-     * Is a user logged in on this request?
-     */
-    public static function check(): bool
-    {
-        return self::user() !== null;
-    }
 }

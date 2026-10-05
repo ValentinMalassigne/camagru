@@ -31,17 +31,4 @@ class Env
         }
         return $value;
     }
-
-    /**
-     * Get an environment variable as a boolean ("1"/"true"/"on" => true).
-     */
-    public static function bool(string $name, bool $default = false): bool
-    {
-        $value = getenv($name);
-        if ($value === false) {
-            return $default;
-        }
-        $value = strtolower($value);
-        return $value === '1' || $value === 'true' || $value === 'on' || $value === 'yes';
-    }
 }
