@@ -18,7 +18,7 @@ spl_autoload_register(function (string $class): void {
     }
 });
 
-// Global view helpers (e(), e_attr()) used by every template.
+// Global view helper (e()) used by every template.
 require __DIR__ . '/helpers.php';
 
 // Application root (the project directory), used to reach config/ and the

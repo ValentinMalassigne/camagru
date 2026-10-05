@@ -20,7 +20,7 @@
     <p class="image-view__back"><a href="/">Back to the gallery</a></p>
 
     <figure class="image-view">
-        <img class="image-view__img" src="/uploads/<?= e_attr($image['filename']) ?>"
+        <img class="image-view__img" src="/uploads/<?= e($image['filename']) ?>"
              alt="Picture by <?= e((string) $image['username']) ?>">
         <figcaption class="image-view__caption">
             by <?= e((string) $image['username']) ?> &mdash; <?= e($date) ?>
@@ -47,7 +47,7 @@
     <div class="image-share">
         <span class="image-share__label">Share:</span>
         <?php foreach ($shares as $share): ?>
-            <a class="image-share__link" href="<?= e_attr($share['url']) ?>"
+            <a class="image-share__link" href="<?= e($share['url']) ?>"
                target="_blank" rel="noreferrer noopener"><?= e($share['label']) ?></a>
         <?php endforeach; ?>
     </div>

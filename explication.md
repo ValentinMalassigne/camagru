@@ -684,13 +684,13 @@ localhost), nom du cookie `camagru_sid`, puis `session_start()`. Si le navigateu
 présente un cookie valide, `$_SESSION` contient les données sauvegardées lors des
 requêtes précédentes ; sinon une session neuve est créée.
 
-## 1.11 `src/helpers.php` — `e()` et `e_attr()`
+## 1.11 `src/helpers.php` — `e()`
 
-Deux fonctions globales, chargées par bootstrap. `e()` est **la** défense XSS du
-projet (détaillée en 0.4) ; `e_attr()` est identique mais porte un nom distinct pour
-signaler, dans les templates, qu'une valeur atterrit dans un attribut HTML
-(`src="/uploads/<?= e_attr($image['filename']) ?>"`). Règle de lecture du projet :
-toute valeur utilisateur dans une vue **doit** passer par `e()` ou `e_attr()`.
+Une fonction globale, chargée par bootstrap. `e()` est **la** défense XSS du
+projet (détaillée en 0.4) : `htmlspecialchars` avec `ENT_QUOTES`, donc utilisable
+indifféremment dans le corps HTML et dans un attribut HTML quoté
+(`src="/uploads/<?= e($image['filename']) ?>"`). Règle de lecture du projet :
+toute valeur utilisateur dans une vue **doit** passer par `e()`.
 
 ## 1.12 Les classes de `src/Core` — le noyau fait maison
 
@@ -1604,7 +1604,7 @@ final n'apprend jamais qu'un serveur SMTP a eu un souci.
   `partials/gallery_items.php` en phase 9) ; les liens Précédent/Suivant avec l'état
   courant « Page X of Y » (désactivés en `<span>` aux extrémités). Tous les noms
   d'auteur passent par `e()`, les compteurs par `(int)`.
-- `image.php` : la photo (depuis `/uploads/`, `e_attr`), l'auteur et la date, le
+- `image.php` : la photo (depuis `/uploads/`, `e()`), l'auteur et la date, le
   formulaire de like **ou** un lien vers `/login` pour un visiteur (jamais un bouton
   mort), le compteur « N like(s) » avec le pluriel géré en PHP, les commentaires —
   chacun rendu par `partials/comment.php` (phase 9), le corps échappé avec `e()` et
@@ -1875,7 +1875,7 @@ camagru/
 │   └── assets/{css/app.css, js/{editor,image,gallery}.js, overlays/*.png}
 └── src/
     ├── bootstrap.php         # autoload, erreurs, session
-    ├── helpers.php           # e(), e_attr()
+    ├── helpers.php           # e()
     ├── routes.php            # la table des routes
     ├── Core/                 # Env, Database, Request, Response, Router, View,
     │                         # Session, Csrf, Validator, Auth, SiteUrl,

@@ -6,7 +6,7 @@
 ?>
 <li class="gallery__item">
     <a class="gallery__link" href="/images/<?= (int) $image['id'] ?>">
-        <img class="gallery__img" src="/uploads/<?= e_attr($image['filename']) ?>"
+        <img class="gallery__img" src="/uploads/<?= e($image['filename']) ?>"
              alt="Picture by <?= e((string) $image['username']) ?>">
     </a>
     <p class="gallery__meta">

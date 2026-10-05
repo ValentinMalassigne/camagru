@@ -33,7 +33,7 @@ Here is a sensible review order — contracts and plan first (so you know what t
 9.  db/schema.sql               (idempotent full schema, section 7)
 10. bin/setup-db.php            (wait for DB, detect missing tables, apply schema)
 11. src/bootstrap.php           (autoloader, helpers require, error/exception handler, session)
-12. src/helpers.php             (e() and e_attr() — the XSS escape helpers)
+12. src/helpers.php             (e() — the XSS escape helper)
 13. src/Core/Env.php            (env var reader)
 14. src/Core/Database.php       (PDO connection with safe settings)
 15. src/Core/NotFoundException.php (thrown by Router, caught for 404)

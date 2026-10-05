@@ -1,6 +1,6 @@
 <?php
 // Reset-password page (reached from the emailed single-use link). The token
-// travels in a hidden field, escaped with e_attr().
+// travels in a hidden field, escaped with e().
 /** @var string $title */
 /** @var array<string, string> $errors */
 /** @var string $token */
@@ -20,7 +20,7 @@
 
     <form class="auth-form" method="post" action="/reset-password">
         <input type="hidden" name="_csrf_token" value="<?= e($csrfToken) ?>">
-        <input type="hidden" name="token" value="<?= e_attr($token) ?>">
+        <input type="hidden" name="token" value="<?= e($token) ?>">
 
         <div class="auth-form__row">
             <label class="auth-form__label" for="password">New password</label>

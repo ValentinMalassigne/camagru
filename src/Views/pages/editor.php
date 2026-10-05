@@ -37,8 +37,8 @@
                             <li class="editor-overlays__item">
                                 <label class="editor-overlays__label">
                                     <input class="editor-overlays__radio" type="radio" name="overlay"
-                                           value="<?= (int) $id ?>" data-overlay-src="/assets/overlays/<?= e_attr($filename) ?>" required>
-                                    <img class="editor-overlays__img" src="/assets/overlays/<?= e_attr($filename) ?>"
+                                           value="<?= (int) $id ?>" data-overlay-src="/assets/overlays/<?= e($filename) ?>" required>
+                                    <img class="editor-overlays__img" src="/assets/overlays/<?= e($filename) ?>"
                                          alt="Overlay: <?= e(basename((string) $filename, '.png')) ?>">
                                 </label>
                             </li>
@@ -66,7 +66,7 @@
                 <?php else: ?>
                     <?php foreach ($images as $image): ?>
                         <li class="editor-side__item">
-                            <img class="editor-side__img" src="/uploads/<?= e_attr($image['filename']) ?>"
+                            <img class="editor-side__img" src="/uploads/<?= e($image['filename']) ?>"
                                  alt="One of my pictures">
                             <form class="editor-side__delete" method="post"
                                   action="/images/<?= (int) $image['id'] ?>/delete">

@@ -30,7 +30,7 @@
                                 <?= nl2br(e($body)) ?>
                             </p>
                             <p style="margin: 0 0 16px;">
-                                <a href="<?= e_attr($link) ?>"
+                                <a href="<?= e($link) ?>"
                                    style="background: #2a6; color: #ffffff; padding: 10px 16px; border-radius: 4px; text-decoration: none; display: inline-block;">
                                     View the picture
                                 </a>

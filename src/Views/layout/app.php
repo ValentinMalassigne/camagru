@@ -38,7 +38,7 @@
         <?php if (!empty($flashes)): ?>
             <div class="flash-list">
                 <?php foreach ($flashes as $flash): ?>
-                    <div class="flash flash--<?= e_attr($flash['type']) ?>">
+                    <div class="flash flash--<?= e($flash['type']) ?>">
                         <?= e($flash['message']) ?>
                     </div>
                 <?php endforeach; ?>

@@ -140,9 +140,9 @@ class GalleryController
         $imageUrl = SiteUrl::base($request) . '/uploads/' . (string) $image['filename'];
         $title = 'Picture by ' . (string) $image['username'] . ' — Camagru';
 
-        return '<meta property="og:title" content="' . e_attr($title) . '">' . "\n" .
-            '    <meta property="og:url" content="' . e_attr($url) . '">' . "\n" .
-            '    <meta property="og:image" content="' . e_attr($imageUrl) . '">';
+        return '<meta property="og:title" content="' . e($title) . '">' . "\n" .
+            '    <meta property="og:url" content="' . e($url) . '">' . "\n" .
+            '    <meta property="og:image" content="' . e($imageUrl) . '">';
     }
 
     /**
