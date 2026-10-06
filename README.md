@@ -13,6 +13,89 @@ retirer les commentaires ?
 
 Pouvoir Switch avec et sans bonus ?
 
+--logging----
+Voici le récapitulatif des mécanismes, fichier par fichier, avec l'endroit exact où chacun est câblé :
+
+1. app.log — redirection par le code applicatif
+
+Table 1
+
+Mécanisme
+Où
+define('APP_LOG_FILE', getenv('APP_LOG_FILE') ?: '/var/log/camagru/app.log')
+
+src/bootstrap.php:30
+app_log() : @file_put_contents(APP_LOG_FILE, $line, FILE_APPEND | LOCK_EX)
+
+src/bootstrap.php
+ — c'est la seule écriture de ce fichier
+Routage des erreurs vers elle : set_exception_handler → app_log_throwable(), set_error_handler (convertit tout warning/notice en exception), register_shutdown_function (fatals : E_ERROR, E_PARSE...)
+
+src/bootstrap.php
+2. php_errors.log — redirection par le moteur PHP
+
+Table 2
+
+Mécanisme
+Où
+error_log = /var/log/camagru/php_errors.log + log_errors = On + display_errors = Off
+
+docker/php/php.ini
+C'est le filet de sécurité du moteur : il ne prend que ce que les handlers de bootstrap.php n'ont pas intercepté (erreur avant leur enregistrement, au tout début du chargement).
+
+3. msmtp.log — redirection par la config msmtp générée
+
+Table 3
+
+Mécanisme
+Où
+cat > /etc/msmtprc <<EOF ... logfile ${LOG_DIR}/msmtp.log ... syslog off — la config est générée au démarrage depuis les variables .env
+
+docker/php/entrypoint.sh
+ (section 1)
+chown -R www-data:www-data "$LOG_DIR" — sans ça, mail() (exécuté en www-data) ne pourrait pas écrire le log
+
+docker/php/entrypoint.sh
+4. nginx_error.log — redirection par réécriture de la conf nginx au démarrage
+
+Table 4
+
+Mécanisme
+Où
+command: qui fait sed -i 's|error_log /var/log/nginx/error.log notice;|error_log /var/log/camagru/nginx_error.log error;|' puis exec nginx
+docker-compose.yml (service nginx) — le niveau passe de notice à error au passage
+Les suppressions complémentaires (ce qui est dévié vers rien plutôt que vers un fichier — l'autre moitié du silence console) :
+
+Table 5
+
+Mécanisme
+Où
+Ce qu'il tue
+sendmail_path = "/usr/bin/msmtp -t 2>/dev/null"
+
+docker/php/php.ini
+le stderr de msmtp (sinon il aboutit dans la console du conteneur)
+access.log = /dev/null + log_level = error (sed dans le Dockerfile)
+
+docker/php/camagru-fpm.conf
+ + 
+docker/php/Dockerfile
+l'access log php-fpm et ses notices de démarrage
+access_log off
+
+docker/nginx/default.conf
+l'access log nginx
+NGINX_ENTRYPOINT_QUIET_LOGS=1
+docker-compose.yml (env nginx)
+la ligne d'info de l'entrypoint de l'image
+log_min_messages=warning + log_checkpoints=off
+docker-compose.yml (command db)
+DEBUG/INFO/NOTICE/LOG runtime de Postgres — ses LOG de démarrage restent acceptés
+
+----------
+
+
+
 
 To review camagru : 
 

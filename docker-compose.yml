@@ -5,12 +5,19 @@
 
 services:
   db:
-    image: postgres:16-alpine
+    # Built from docker/db/Dockerfile: official postgres + musl-locales so
+    # initdb's locale probe succeeds silently on first initialisation.
+    build:
+      context: .
+      dockerfile: docker/db/Dockerfile
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # First initialisation only: scram on socket and localhost connections.
+      # Removes initdb's "trust" warning and hardens the local auth.
+      POSTGRES_INITDB_ARGS: "--auth-local=scram-sha-256 --auth-host=scram-sha-256"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:

@@ -67,16 +67,20 @@ They appear once on start and never again while the app is running.
 - `db`: `LOG: database system was shut down at ...`
 - `db`: `LOG: database system is ready to accept connections`
 - `db`: (first start only) the initdb banner and `CREATE DATABASE` output from
-  the postgres image's first-run initialization. Two lines inside that banner
-  deserve their own mention, listed after trying to silence them: `sh: locale:
-  not found` followed by `WARNING: no usable system locales were found`.
-  Source: initdb (inside the official image) probing for the `locale` tool,
-  which Alpine does not ship. Tried and rejected:
-  `POSTGRES_INITDB_ARGS="--no-locale"` (the cluster then uses the C locale,
-  but initdb still probes and prints both lines, verified on a throwaway
-  clone), and rebuilding a custom postgres image with locale tooling is out
-  of proportion for two first-start-only lines. Accepted: first start of a
-  new volume only, never at request time.
+  the postgres image first-run initialization. Lines this banner used to print
+  are now fixed, each verified on a throwaway container:
+  - `sh: locale: not found` + `WARNING: no usable system locales were found`:
+    the db service builds docker/db/Dockerfile, which adds `musl-locales`,
+    the tool initdb probes for (verified 2026-10-06).
+  - `initdb: warning: enabling "trust" authentication for local connections`
+    + its hint: the db service passes `POSTGRES_INITDB_ARGS="--auth-local=
+    scram-sha-256 --auth-host=scram-sha-256"`, so the socket and localhost
+    connections now require the password too (verified 2026-10-06).
+  An earlier attempt, `POSTGRES_INITDB_ARGS="--no-locale"`, was rejected
+  after testing on a throwaway clone: initdb still probes and prints both
+  lines anyway. The rest of the banner is normal first-initialisation output
+  and cannot be silenced. Accepted: first start of a new volume only, never
+  at request time.
 - `db`: `PostgreSQL Database directory appears to contain a database; Skipping
   initialization` — printed by the official image's entrypoint script on
   every start of an existing data volume (not by the server, so
