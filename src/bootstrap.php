@@ -27,12 +27,6 @@ if (!defined('APP_ROOT')) {
     define('APP_ROOT', dirname(__DIR__));
 }
 
-// --- Log destination ----------------------------------------------------
-// App log file: overridable via APP_LOG_FILE, defaults to the docker volume.
-if (!defined('APP_LOG_FILE')) {
-    define('APP_LOG_FILE', getenv('APP_LOG_FILE') ?: '/var/log/camagru/app.log');
-}
-
 // Uploaded composited pictures (spec section 8): written by php, served
 // read-only by nginx from the same shared volume. Overridable via
 // APP_UPLOAD_DIR, defaults to the docker volume.
@@ -41,14 +35,13 @@ if (!defined('APP_UPLOAD_DIR')) {
 }
 
 /**
- * Write a single line to the app log file. Never prints to the console.
- * Used by the error handler and by feature code that needs deliberate logging.
+ * Write a single line to PHP error log, which reaches the container
+ * console. Used by the error handler and by feature code that needs
+ * deliberate logging.
  */
 function app_log(string $message): void
 {
-    $line = sprintf("[%s] %s\n", date('Y-m-d H:i:s'), $message);
-    // Suppress errors: logging must never break the request.
-    @file_put_contents(APP_LOG_FILE, $line, FILE_APPEND | LOCK_EX);
+    error_log($message);
 }
 
 /**
@@ -66,7 +59,8 @@ function app_log_throwable(Throwable $e): void
 }
 
 // --- Error and exception handling --------------------------------------
-// Everything is logged to a file; the user only ever sees a generic 500 page.
+// Everything is logged through PHP error log (container console); the
+// user only ever sees a generic 500 page.
 
 set_exception_handler(function (Throwable $e): void {
     app_log_throwable($e);

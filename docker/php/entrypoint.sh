@@ -4,22 +4,19 @@
 # 2. Run the DB setup (waits for the DB, creates missing tables).
 # 3. Exec php-fpm.
 #
-# Nothing is printed on success: the container console stays quiet.
+# Native logging: msmtp gets no logfile/syslog directive, so its errors go to
+# stderr; the application logs through PHP's error log. Both reach the
+# container console.
 
 set -eu
 
-LOG_DIR="/var/log/camagru"
-mkdir -p "$LOG_DIR" /var/www/camagru/uploads
-# The php-fpm workers run as www-data: they (and msmtp, spawned by mail())
-# must be able to write the log files and the uploads. Without this, every
-# log write and mail send fails with "Permission denied" at request time.
-# Recursive: a file created by any earlier root process (e.g. a debug exec
-# into the container) must not block the fpm user either.
-chown -R www-data:www-data "$LOG_DIR"
+mkdir -p /var/www/camagru/uploads
+# The php-fpm workers run as www-data: they must be able to write the uploads.
+# Without this, every upload fails with "Permission denied" at request time.
 chown www-data:www-data /var/www/camagru/uploads
 
 # --- 1. msmtp config -----------------------------------------------------
-# Built from .env values; never committed. Log goes to a file, never stdout.
+# Built from .env values; never committed.
 MSMTPRC="/etc/msmtprc"
 
 # tls_starttls setting depends on SMTP_SECURE (ssl => off, starttls => on).
@@ -36,8 +33,6 @@ auth on
 tls on
 tls_starttls ${STARTTLS}
 tls_trust_file /etc/ssl/certs/ca-certificates.crt
-logfile ${LOG_DIR}/msmtp.log
-syslog off
 
 account default
 host ${SMTP_HOST}
@@ -48,11 +43,12 @@ password ${SMTP_PASS}
 EOF
 
 # msmtp must read the config; restrict it to the fpm user.
-chown www-data:www-data "$MSMTPRC" 2>/dev/null || true
+chown www-data:www-data "$MSMTPRC"
 chmod 600 "$MSMTPRC"
 
 # --- 2. Database setup ---------------------------------------------------
-# Silent on success; on failure logs to file and exits non-zero.
+# On failure logs through PHP's error log and exits non-zero so the
+# container does not serve a broken site.
 php /var/www/camagru/bin/setup-db.php
 
 # --- 3. Start php-fpm ----------------------------------------------------

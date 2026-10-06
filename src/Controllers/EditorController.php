@@ -83,6 +83,10 @@ class EditorController
             // The overlay id is validated inside the pipeline (whitelist).
             $filename = ImageComposer::compose($file, (int) ($request->post('overlay') ?? '0'));
         } catch (ImageException $e) {
+            // The user gets the safe message, the console gets the cause too:
+            // some rejections are server-side problems (corrupt overlay,
+            // unwritable uploads dir) that must not stay invisible.
+            app_log("upload rejected: " . $e->getMessage());
             return $this->failure($wantsJson, $e->getMessage());
         }
 

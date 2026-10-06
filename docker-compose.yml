@@ -1,12 +1,14 @@
-# Camagru — docker compose stack.
+# Camagru — docker compose stack (logging_change branch).
 # Only nginx publishes a port (80). The DB is internal. Uploads live in a named
-# volume shared by php (read-write) and nginx (read-only). Logs go to a named
-# volume, never the container console.
+# volume shared by php (read-write) and nginx (read-only).
+# Native logging: every service writes to its container console (stdout/stderr),
+# visible in `docker compose logs`; no log files, no silencing.
 
 services:
   db:
     # Built from docker/db/Dockerfile: official postgres + musl-locales so
-    # initdb's locale probe succeeds silently on first initialisation.
+    # initdb locale probe succeeds (fixes the "no usable system locales"
+    # warning).
     build:
       context: .
       dockerfile: docker/db/Dockerfile
@@ -15,8 +17,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      # First initialisation only: scram on socket and localhost connections.
-      # Removes initdb's "trust" warning and hardens the local auth.
+      # scram on socket and localhost connections at first init: fixes
+      # initdb "trust" warning and hardens local auth. Applies only
+      # during the first initialisation of an empty volume.
       POSTGRES_INITDB_ARGS: "--auth-local=scram-sha-256 --auth-host=scram-sha-256"
     volumes:
       - db_data:/var/lib/postgresql/data
@@ -27,11 +30,10 @@ services:
       timeout: 3s
       retries: 20
       start_period: 5s
-    # Quiet the server log: only warnings and above reach the console, and
-    # the periodic checkpoint reports stay out of it too (log_checkpoints
-    # is on by default in Postgres 15+ and writes LOG-rank lines every five
-    # minutes of activity — runtime output, so it must not reach the console).
-    command: ["postgres", "-c", "log_min_messages=warning", "-c", "log_checkpoints=off"]
+    # Checkpoint reports are periodic maintenance noise (one pair every
+    # 5 minutes of activity), not errors: keep them out of the console.
+    command: ["postgres", "-c", "log_checkpoints=off"]
+
     # No port published to the host.
     expose:
       - "5432"
@@ -51,7 +53,6 @@ services:
       # mount the whole project; only public/ is web-exposed via nginx.
       - .:/var/www/camagru
       - uploads:/var/www/camagru/uploads
-      - logs:/var/log/camagru
     # No port published; nginx talks to php-fpm over the internal network.
     expose:
       - "9000"
@@ -63,23 +64,11 @@ services:
       - php
     ports:
       - "80:80"
-    # Replace the main error_log (notice level -> stderr) with a file at
-      # "error" level, so the "start worker process" startup notices stay out
-      # of the container console. The entrypoint still runs; we exec nginx after.
-    command: >
-      sh -c "sed -i 's|error_log  /var/log/nginx/error.log notice;|error_log /var/log/camagru/nginx_error.log error;|' /etc/nginx/nginx.conf &&
-             exec nginx -g 'daemon off;'"
     volumes:
       - .:/var/www/camagru:ro
       - uploads:/var/www/camagru/uploads:ro
-      - logs:/var/log/camagru
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-    environment:
-      # Silence the nginx image's entrypoint informational log lines.
-      NGINX_ENTRYPOINT_QUIET_LOGS: "1"
 
 volumes:
   db_data:
   uploads:
-  logs:
-

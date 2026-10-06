@@ -6,8 +6,9 @@
 //   2. Check that the required tables exist.
 //   3. If any is missing, apply db/schema.sql (idempotent — safe every time).
 //   4. Never drop, truncate or overwrite existing data.
-//   5. Print nothing on success. On failure, log to a file and exit non-zero
-//      so the container does not serve a broken site.
+//   5. Print nothing on success. On failure, log through PHP error log (the
+//      container console) and exit non-zero so the container does not
+//      serve a broken site.
 
 declare(strict_types=1);
 
@@ -58,12 +59,6 @@ function missingTables(PDO $pdo): array
 }
 
 // --- Main ---------------------------------------------------------------
-
-// Ensure the log directory exists for app_log() (it normally lives in a volume).
-$logDir = dirname(APP_LOG_FILE);
-if (!is_dir($logDir)) {
-    @mkdir($logDir, 0777, true);
-}
 
 waitForDatabase();
 

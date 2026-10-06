@@ -2,6 +2,18 @@
 
 Justification of non-obvious tools and accepted (un-silenceable) startup lines.
 
+**Branch `logging_change`**: on this branch the console silence policy is
+intentionally reverted to native behaviour: no log-file redirection, no
+suppression; every service logs to its container console (stderr/stdout),
+and the browser console shows the browser-native output. The
+console-silence sections below describe the silenced setup that still
+applies to `main`.
+
+Exception: the two db first-init corrections documented below
+(musl-locales image, scram POSTGRES_INITDB_ARGS) also apply on this
+branch: they fix missing tooling and unsafe defaults, they hide
+nothing.
+
 ## Non-obvious tools used
 
 - **msmtp** — external binary (not PHP) that relays PHP `mail()` to the SMTP
