@@ -30,6 +30,24 @@ class AuthController
      * timing cannot be used to enumerate existing usernames.
      */
     private const DUMMY_HASH = '$2y$10$BVisZbBj.vrTqLF41ZmV/.qfLFCevzcnFzqez20AC.yES7o5KMvMq';
+
+    /**
+     * A logged-in user has nothing to do on the register and login pages:
+     * the GET forms and their POST handlers send them home with a friendly
+     * message, so a stale form submission cannot log in over, or register
+     * an account next to, an existing session.
+     *
+     * @return Response|null The home redirect, or null to continue.
+     */
+    private function redirectIfLoggedIn(): ?Response
+    {
+        if (Auth::user() !== null) {
+            Session::flash('info', 'You are already logged in.');
+            return Response::redirect('/');
+        }
+        return null;
+    }
+
     /**
      * GET /register — the registration form.
      *
@@ -37,6 +55,10 @@ class AuthController
      */
     public function registerForm(Request $request, array $params = []): Response
     {
+        $redirect = $this->redirectIfLoggedIn();
+        if ($redirect !== null) {
+            return $redirect;
+        }
         return $this->showRegisterForm([], []);
     }
 
@@ -49,6 +71,11 @@ class AuthController
      */
     public function register(Request $request, array $params = []): Response
     {
+        $redirect = $this->redirectIfLoggedIn();
+        if ($redirect !== null) {
+            return $redirect;
+        }
+
         if (!Csrf::verify($request)) {
             // Expired form / forged request: generic message, try again.
             Session::flash('error', 'Your session expired. Please fill the form again.');
@@ -128,6 +155,10 @@ class AuthController
      */
     public function loginForm(Request $request, array $params = []): Response
     {
+        $redirect = $this->redirectIfLoggedIn();
+        if ($redirect !== null) {
+            return $redirect;
+        }
         return $this->showLoginForm([]);
     }
 
@@ -143,6 +174,11 @@ class AuthController
      */
     public function login(Request $request, array $params = []): Response
     {
+        $redirect = $this->redirectIfLoggedIn();
+        if ($redirect !== null) {
+            return $redirect;
+        }
+
         if (!Csrf::verify($request)) {
             Session::flash('error', 'Your session expired. Please try again.');
             return Response::redirect('/login');

@@ -113,7 +113,11 @@ per the console output policy, with their source.
   `http://localhost` (port 80) with no TLS, so the only fix (HTTPS) is out of
   scope. Appears on the register page, and later on every page with a
   password field (login, reset, account). Chrome 46 does not emit it.
-  Logged in COMPATIBILITY.md as entry 4.
+  Logged in COMPATIBILITY.md as entry 4. Tried and rejected (VM, 2026-10-06):
+  the `security.insecure_password_warning.enabled` and
+  `security.insecure_field_warning.contextual.enabled` about:config prefs have
+  no effect on Firefox 41 — they only exist from Firefox 44 (bug 1217156);
+  Firefox 41 emits this warning unconditionally.
 
 ## Environment variables not in the spec
 
