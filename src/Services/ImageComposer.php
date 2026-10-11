@@ -4,8 +4,8 @@
 // arrive as an HTTP file upload, so they share this code path: validate the
 // upload, detect the real type with finfo and getimagesize, decode with GD,
 // re-encode through a fresh truecolor canvas (which also strips any metadata
-// or payload embedded in the source), composite the whitelisted overlay with
-// its alpha channel, and save under a random filename in the uploads volume.
+// or payload embedded in the source), composite the whitelisted stickers with
+// their alpha channels, and save under a random filename in the uploads volume.
 //
 // Security notes (why each check exists):
 // - is_uploaded_file() refuses anything that did not really come from this
@@ -14,7 +14,7 @@
 //   getimagesize: PHP code renamed to ".png" is rejected before GD decodes.
 // - The dimension cap runs BEFORE any GD decode: a tiny-but-huge PNG
 //   ("decompression bomb") would otherwise exhaust the memory limit.
-// - The overlay is chosen by id only and resolved through
+// - Stickers are chosen by id only and resolved through
 //   config/overlays.php; a filename or path never comes from the client, so
 //   path traversal is impossible. An unknown or missing id is rejected.
 // - The stored filename is random (bin2hex(random_bytes(16))), so nothing
@@ -28,35 +28,67 @@ use GdImage;
 
 final class ImageComposer
 {
-    /** Maximum accepted upload size: 5 MB (spec section 8). */
-    public const MAX_BYTES = 5 * 1024 * 1024;
+    /** Maximum accepted upload size: 10 MB (spec section 8). */
+    public const MAX_BYTES = 10 * 1024 * 1024;
 
     /** Maximum accepted width and height, in pixels. */
-    public const MAX_EDGE = 2500;
+    public const MAX_EDGE = 5000;
 
     /**
-     * Validate the upload, composite the overlay and store the result.
+     * Validate the upload, composite the stickers and store the result.
+     * Between 0 stickers (a plain re-encoded photo) and all stickers may be
+     * applied; every id must exist in config/overlays.php.
      *
-     * @param array<string, mixed> $file      One entry of $_FILES (an uploaded
-     *                                        file: webcam blob or form upload).
-     * @param int                  $overlayId Overlay id as listed in
-     *                                        config/overlays.php.
+     * @param array<string, mixed> $file       One entry of $_FILES (an uploaded
+     *                                         file: webcam blob or form upload).
+     * @param array<int, mixed>    $overlayIds Sticker ids as sent by the client
+     *                                         (strings or ints, 0 to N items).
      * @return string The generated filename, without any path ("ab12...png").
-     * @throws ImageException When the upload or the overlay is rejected.
+     * @throws ImageException When the upload or a sticker id is rejected.
      */
-    public static function compose(array $file, int $overlayId): string
+    public static function compose(array $file, array $overlayIds): string
     {
         $bytes = self::readUpload($file);
         $base = self::decode($bytes);
         // The raw bytes are no longer needed; free them before compositing.
         unset($bytes);
 
-        $overlay = self::loadOverlay($overlayId);
-        $result = self::composite($base, $overlay);
+        // Duplicates are collapsed and the ids sorted, so a given set of
+        // stickers always produces the same layout whatever the submission
+        // order was (plain form checkboxes or the webcam fetch).
+        $overlays = [];
+        foreach (self::uniqueIds($overlayIds) as $id) {
+            $overlays[] = self::loadOverlay($id);
+        }
+
+        $result = self::composite($base, $overlays);
         imagedestroy($base);
-        imagedestroy($overlay);
+        foreach ($overlays as $overlay) {
+            imagedestroy($overlay);
+        }
 
         return self::save($result);
+    }
+
+    /**
+     * Normalize the client's sticker ids to a sorted list of unique ints.
+     * Duplicates (possible only in a crafted request) are collapsed rather
+     * than rejected: drawn twice, a sticker would cover itself exactly.
+     * Unknown ids are not filtered here; loadOverlay rejects them against
+     * the whitelist.
+     *
+     * @param array<int, mixed> $overlayIds
+     * @return array<int, int> Sorted, unique, integer ids.
+     */
+    private static function uniqueIds(array $overlayIds): array
+    {
+        $ids = [];
+        foreach ($overlayIds as $id) {
+            $ids[] = (int) $id;
+        }
+        $ids = array_values(array_unique($ids));
+        sort($ids);
+        return $ids;
     }
 
     /**
@@ -75,7 +107,7 @@ final class ImageComposer
 
         $error = (int) $file['error'];
         if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
-            throw new ImageException('The picture is too large (5 MB maximum).');
+            throw new ImageException('The picture is too large (10 MB maximum).');
         }
         if ($error !== UPLOAD_ERR_OK) {
             throw new ImageException('The upload failed. Please try again.');
@@ -84,7 +116,7 @@ final class ImageComposer
             throw new ImageException('Invalid upload.');
         }
         if (!isset($file['size']) || (int) $file['size'] < 1 || (int) $file['size'] > self::MAX_BYTES) {
-            throw new ImageException('The picture is too large (5 MB maximum).');
+            throw new ImageException('The picture is too large (10 MB maximum).');
         }
 
         $bytes = @file_get_contents($file['tmp_name']);
@@ -133,44 +165,47 @@ final class ImageComposer
     }
 
     /**
-     * Load the overlay chosen by id. The whitelist (config/overlays.php) is
+     * Load one sticker by its id. The whitelist (config/overlays.php) is
      * the only way from an id to a filename, so no client input can ever
      * reach a filesystem path.
      *
-     * @return GdImage The decoded overlay, with its alpha channel.
+     * @return GdImage The decoded sticker, with its alpha channel.
      * @throws ImageException
      */
     private static function loadOverlay(int $overlayId): GdImage
     {
         $overlays = require APP_ROOT . '/config/overlays.php';
         if (!isset($overlays[$overlayId])) {
-            throw new ImageException('Please choose a valid overlay.');
+            throw new ImageException('Please choose a valid sticker.');
         }
 
         $path = APP_ROOT . '/public/assets/overlays/' . $overlays[$overlayId];
         if (!is_file($path)) {
-            throw new ImageException('The overlay could not be loaded.');
+            throw new ImageException('The sticker could not be loaded.');
         }
 
-        // @: a corrupt overlay file is a server-side problem; the caller only
+        // @: a corrupt sticker file is a server-side problem; the caller only
         // needs the rejection.
         $overlay = @imagecreatefrompng($path);
         if ($overlay === false) {
-            throw new ImageException('The overlay could not be loaded.');
+            throw new ImageException('The sticker could not be loaded.');
         }
         return $overlay;
     }
 
     /**
      * Re-encode the source onto a fresh truecolor canvas with an alpha
-     * channel, then draw the overlay on top, scaled to fit inside the picture
-     * and centered.
+     * channel, then draw the stickers on top. Each sticker is scaled to fit
+     * inside the picture and centered on it; the stickers are drawn in sorted
+     * id order, so a higher id sits above a lower one — the artwork itself
+     * decides how a stack of stickers looks. editor.js draws the same
+     * geometry for the live preview.
      *
-     * @param GdImage $base    The decoded source picture.
-     * @param GdImage $overlay The decoded overlay PNG.
+     * @param GdImage        $base     The decoded source picture.
+     * @param array<GdImage> $overlays The decoded sticker PNGs, in draw order.
      * @return GdImage The composited image (not yet saved).
      */
-    private static function composite(GdImage $base, GdImage $overlay): GdImage
+    private static function composite(GdImage $base, array $overlays): GdImage
     {
         $baseW = imagesx($base);
         $baseH = imagesy($base);
@@ -186,19 +221,22 @@ final class ImageComposer
         // resampled (not copied) also converts a palette source to truecolor.
         imagecopyresampled($out, $base, 0, 0, 0, 0, $baseW, $baseH, $baseW, $baseH);
 
-        // Scale the overlay to fit inside the picture, centered on it.
-        $ovW = imagesx($overlay);
-        $ovH = imagesy($overlay);
-        $scale = min($baseW / $ovW, $baseH / $ovH);
-        $newW = max(1, (int) round($ovW * $scale));
-        $newH = max(1, (int) round($ovH * $scale));
-        $dstX = (int) floor(($baseW - $newW) / 2);
-        $dstY = (int) floor(($baseH - $newH) / 2);
-
-        // Blending ON for the overlay: its transparent pixels must let the
-        // photo show through instead of overwriting it.
+        // Blending ON for the stickers: their transparent pixels must let
+        // the photo show through instead of overwriting it.
         imagealphablending($out, true);
-        imagecopyresampled($out, $overlay, $dstX, $dstY, 0, 0, $newW, $newH, $ovW, $ovH);
+        foreach ($overlays as $overlay) {
+            // Scale each sticker to fit inside the picture (aspect kept)
+            // and center it; later stickers are drawn on top.
+            $ovW = imagesx($overlay);
+            $ovH = imagesy($overlay);
+            $scale = min($baseW / $ovW, $baseH / $ovH);
+            $newW = max(1, (int) round($ovW * $scale));
+            $newH = max(1, (int) round($ovH * $scale));
+            $dstX = (int) floor(($baseW - $newW) / 2);
+            $dstY = (int) floor(($baseH - $newH) / 2);
+
+            imagecopyresampled($out, $overlay, $dstX, $dstY, 0, 0, $newW, $newH, $ovW, $ovH);
+        }
 
         return $out;
     }

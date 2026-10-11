@@ -80,8 +80,9 @@ class EditorController
         }
 
         try {
-            // The overlay id is validated inside the pipeline (whitelist).
-            $filename = ImageComposer::compose($file, (int) ($request->post('overlay') ?? '0'));
+            // The sticker ids are validated inside the pipeline (whitelist);
+            // the list may be empty: stickers are optional (0 to all).
+            $filename = ImageComposer::compose($file, $request->postList('overlay'));
         } catch (ImageException $e) {
             // The user gets the safe message, the console gets the cause too:
             // some rejections are server-side problems (corrupt overlay,

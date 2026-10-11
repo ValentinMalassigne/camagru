@@ -379,6 +379,14 @@ a.gallery-pagination__link:hover {
     left: 0;
     width: 100%;
     height: 100%;
+    /* Same box look as the video, so the preview does not change the UI
+       when it appears: same rounded corners, no border. */
+    border-radius: 6px;
+    /* An uploaded file may have another aspect ratio than the webcam box:
+       contain keeps the picture undistorted (dark bars around it, like the
+       video background) instead of stretching the canvas. */
+    object-fit: contain;
+    background: #111;
     pointer-events: none;
 }
 
@@ -589,8 +597,10 @@ a.gallery-pagination__link:hover {
 .editor__video {
     display: block;
     width: 100%;
+    /* Cover: the frame fills the content box completely, so no subpixel
+       sliver of the dark background shows at the bottom. */
+    object-fit: cover;
     background: #111;
-    border: 1px solid #333;
     border-radius: 6px;
     min-height: 120px;
 }
@@ -655,8 +665,13 @@ a.gallery-pagination__link:hover {
     border-color: #2a6;
 }
 
-.editor-overlays__radio:checked + .editor-overlays__img {
+.editor-overlays__choice:checked + .editor-overlays__img {
     outline: 2px solid #2a6;
+}
+
+.editor-overlays__hint {
+    font-size: 0.9em;
+    margin: 4px 0 0;
 }
 
 .editor-overlays__img {

@@ -3,18 +3,22 @@
  * Responsibilities:
  * - get the webcam through a small compatibility wrapper (never call
  *   getUserMedia directly), and attach the stream by feature detection;
- * - enable the capture and upload buttons only once an overlay is selected;
+ * - stickers are optional checkboxes: the user may pick 0 to all of them.
+ *   The capture button needs at least one sticker; the upload submit is
+ *   always available (the server accepts a picture without stickers);
  * - draw the video frame to a canvas, export it with toDataURL('image/png')
  *   (never canvas.toBlob, see COMPATIBILITY.md entry 3), convert the result
- *   to a Blob and send it with FormData + XMLHttpRequest and the overlay id
- *   (XHR instead of fetch: see COMPATIBILITY.md entry 5);
+ *   to a Blob and send it with FormData + XMLHttpRequest and every selected
+ *   sticker id (XHR instead of fetch: see COMPATIBILITY.md entry 5);
  * - when there is no webcam, no permission or no getUserMedia, show a
  *   friendly message instead of the preview and leave the upload form
  *   working. Handled cases produce no console noise.
- * - live overlay preview (bonus): once an overlay is selected and the
- *   webcam runs, draw the overlay over the video frames on a canvas that
- *   sits on top of the video, mirroring the server's compositing. The
- *   server still produces the final saved image; this is only a preview.
+ * - live sticker preview (bonus): once at least one sticker is selected
+ *   and the webcam runs, draw the video and the selected stickers on a
+ *   canvas that sits on top of the video, mirroring the server's compositing.
+ *   A picture chosen in the upload input takes the webcam's place as the
+ *   preview frame until the page is (re)loaded. The server still produces
+ *   the final saved image; this is only a preview.
  *
  * Written in ES5 style: var and function only, no arrow functions, no
  * template literals, no async/await.
@@ -29,105 +33,232 @@
     }
 
     var video = document.getElementById('editor-video');
+    var fileInput = document.getElementById('editor-file');
     var message = document.getElementById('editor-message');
     var statusLine = document.getElementById('editor-status');
     var captureButton = document.getElementById('editor-capture');
-    var uploadButton = document.getElementById('editor-upload-submit');
     var sideList = document.getElementById('editor-side-list');
     var csrfToken = form.querySelector('input[name="_csrf_token"]').value;
     var hasStream = false;
     var overlayCanvas = document.getElementById('editor-overlay-canvas');
     var overlayContext = overlayCanvas ? overlayCanvas.getContext('2d') : null;
-    var overlayImage = null;
+    /* Sticker PNGs already loaded, keyed by sticker id, so selecting a
+       sticker again never reloads it. */
+    var overlayImages = {};
     var previewTimer = null;
+    /* The picture chosen in the upload input, once decoded for the preview.
+       While set, it replaces the webcam as the preview frame. */
+    var fileImage = null;
 
-    /* --- Overlay selection gates the two buttons ----------------------- */
+    /* --- Sticker selection (0 to all, optional) ------------------------- */
 
     /**
-     * The overlay radio currently selected, or null. The name attribute is
-     * shared by all the radios of the group.
+     * Every checkbox of the sticker group. The name carries brackets
+     * ("overlay[]") so a plain form submission sends a list.
      */
-    function selectedOverlay() {
-        return form.querySelector('input[name="overlay"]:checked');
+    function stickerInputs() {
+        return form.querySelectorAll('input[name="overlay[]"]');
     }
 
     /**
-     * Enable the capture and upload buttons only when an overlay is chosen.
-     * With JavaScript disabled the buttons simply stay enabled and the server
-     * validates the overlay id (the upload form must keep working without JS).
+     * The ids of the checked stickers, sorted numerically. The server draws
+     * the stickers in this same sorted order, so the picture matches the
+     * live preview whatever the click order was.
+     *
+     * @returns {string[]}
      */
-    function refreshButtons() {
-        var hasOverlay = selectedOverlay() !== null;
-        captureButton.disabled = !hasOverlay;
-        uploadButton.disabled = !hasOverlay;
+    function selectedIds() {
+        var ids = [];
+        var inputs = stickerInputs();
+        for (var i = 0; i < inputs.length; i = i + 1) {
+            if (inputs[i].checked) {
+                ids.push(inputs[i].value);
+            }
+        }
+        ids.sort(function (a, b) {
+            return Number(a) - Number(b);
+        });
+        return ids;
     }
 
-    // Change events from the radios bubble up to the form.
-    form.addEventListener('change', refreshButtons);
-    form.addEventListener('change', selectOverlayPreview);
-    refreshButtons();
-
-    /* --- Live overlay preview (bonus) ----------------------------------- */
+    /**
+     * True once every currently selected sticker has its PNG cached, so
+     * the preview can draw the same set the server will composite.
+     *
+     * @param {string[]} ids
+     */
+    function allStickersLoaded(ids) {
+        for (var i = 0; i < ids.length; i = i + 1) {
+            if (!overlayImages[ids[i]]) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     /**
-     * Load the PNG of the overlay currently selected so the preview loop
-     * can draw it over the video frames. The source comes from the
-     * data-overlay-src attribute rendered by the server (the same overlay
+     * Keep the capture button in sync with the current mode. In camera
+     * mode it reads "Take a photo" and is enabled only when at least one
+     * sticker is checked. While a local picture is chosen it becomes the
+     * always-enabled "Back to camera" switch (the sticker rule does not
+     * apply to it: it never captures). The upload submit is never gated:
+     * the server accepts a picture without stickers, so the no-JavaScript
+     * upload path keeps working.
+     */
+    function refreshCaptureButton() {
+        if (fileImage !== null) {
+            setText(captureButton, 'Back to camera');
+            captureButton.disabled = false;
+            return;
+        }
+        setText(captureButton, 'Take a photo');
+        captureButton.disabled = selectedIds().length === 0;
+    }
+
+    // One change listener covers the whole sticker selection.
+    form.addEventListener('change', onSelectionChange);
+    // Initial state: no sticker is checked, so the capture button is off.
+    refreshCaptureButton();
+
+    /* --- Live sticker preview (bonus) ----------------------------------- */
+
+    /**
+     * React to any checkbox change: load the PNG of every newly selected
+     * sticker, then show or hide the preview. The sources come from the
+     * data-overlay-src attributes rendered by the server (the same
      * whitelist the capture uses), never from free-form client input.
      */
-    function selectOverlayPreview() {
-        var radio = selectedOverlay();
-        if (!radio || !overlayContext) {
-            return;
+    function onSelectionChange() {
+        var inputs = stickerInputs();
+        for (var i = 0; i < inputs.length; i = i + 1) {
+            if (!inputs[i].checked || overlayImages[inputs[i].value]) {
+                continue;
+            }
+            loadSticker(inputs[i]);
         }
+        if (selectedIds().length === 0 && fileImage === null) {
+            stopOverlayPreview();
+        } else {
+            refreshPreview();
+        }
+        refreshCaptureButton();
+    }
+
+    /**
+     * Load the PNG of one sticker checkbox and cache it by id, then try to
+     * start the preview (the last loaded sticker triggers it).
+     *
+     * @param {HTMLInputElement} checkbox
+     */
+    function loadSticker(checkbox) {
         var image = new Image();
         image.onload = function () {
-            overlayImage = image;
-            startOverlayPreview();
+            overlayImages[checkbox.value] = image;
+            refreshPreview();
         };
-        image.src = radio.getAttribute('data-overlay-src');
+        image.src = checkbox.getAttribute('data-overlay-src');
     }
 
     /**
-     * Start the preview loop once both the webcam and an overlay are
-     * available (whichever arrives first; the other one starts it). The
-     * loop redraws ten times per second (setInterval stays inside the safe
-     * API subset), mirroring the server's compositing: the overlay is
-     * scaled to fit inside the frame and centered on it.
+     * Start or keep the preview loop running when there is something to
+     * show: a chosen upload (with or without stickers) or at least one
+     * sticker over the webcam stream. Called whenever the selection, the
+     * webcam or the chosen file changes. A running loop picks every change
+     * up on its next tick; the immediate draw avoids a flash of stale
+     * content.
      */
-    function startOverlayPreview() {
-        if (previewTimer !== null || !hasStream || !overlayImage || !overlayContext) {
+    function refreshPreview() {
+        var ids = selectedIds();
+        if (ids.length === 0 && fileImage === null) {
+            stopOverlayPreview();
             return;
         }
-        overlayCanvas.className = overlayCanvas.className.replace(' is-hidden', '');
-        previewTimer = setInterval(drawOverlayPreview, 100);
+        // No frame yet: nothing can be drawn (the webcam is still starting,
+        // or it failed and no file is chosen).
+        if (fileImage === null && !hasStream) {
+            return;
+        }
+        if (!allStickersLoaded(ids) || !overlayContext) {
+            return;
+        }
+        if (overlayCanvas.className.indexOf('is-hidden') !== -1) {
+            overlayCanvas.className = overlayCanvas.className.replace(' is-hidden', '');
+        }
+        drawOverlayPreview();
+        if (previewTimer === null) {
+            previewTimer = setInterval(drawOverlayPreview, 100);
+        }
     }
 
     /**
-     * One preview frame: the current video frame, then the overlay on top,
-     * fit inside the frame and centered (the same math as ImageComposer).
+     * Stop the preview loop and hide the canvas (called when the last
+     * sticker is unchecked). The canvas bitmap is also cleared, so the
+     * canvas can never briefly show a stale frame again.
+     */
+    function stopOverlayPreview() {
+        if (previewTimer !== null) {
+            clearInterval(previewTimer);
+            previewTimer = null;
+        }
+        if (overlayCanvas) {
+            if (overlayCanvas.className.indexOf('is-hidden') === -1) {
+                overlayCanvas.className = overlayCanvas.className + ' is-hidden';
+            }
+            if (overlayContext) {
+                overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            }
+        }
+    }
+
+    /**
+     * One preview frame: the current frame source, then every selected
+     * sticker on top, with the same geometry as ImageComposer: each
+     * sticker is scaled to fit inside the frame and centered on it,
+     * drawn in sorted id order (higher ids above lower ones).
+     *
+     * The frame source is the chosen upload when there is one (the user
+     * wants to see the stickers appear on the picture they picked), else
+     * the webcam video.
      */
     function drawOverlayPreview() {
-        if (!video.videoWidth || !overlayImage) {
-            return;
+        var source;
+        var width;
+        var height;
+        if (fileImage !== null) {
+            source = fileImage;
+            width = fileImage.naturalWidth;
+            height = fileImage.naturalHeight;
+        } else {
+            if (!video.videoWidth) {
+                return;
+            }
+            source = video;
+            width = video.videoWidth;
+            height = video.videoHeight;
         }
-        var width = video.videoWidth;
-        var height = video.videoHeight;
         if (overlayCanvas.width !== width || overlayCanvas.height !== height) {
             overlayCanvas.width = width;
             overlayCanvas.height = height;
         }
-        overlayContext.drawImage(video, 0, 0, width, height);
-        var scale = Math.min(
-            width / overlayImage.naturalWidth,
-            height / overlayImage.naturalHeight
-        );
-        var newWidth = Math.max(1, Math.round(overlayImage.naturalWidth * scale));
-        var newHeight = Math.max(1, Math.round(overlayImage.naturalHeight * scale));
-        overlayContext.drawImage(overlayImage,
-            Math.floor((width - newWidth) / 2),
-            Math.floor((height - newHeight) / 2),
-            newWidth, newHeight);
+        overlayContext.drawImage(source, 0, 0, width, height);
+
+        var ids = selectedIds();
+        for (var i = 0; i < ids.length; i = i + 1) {
+            var image = overlayImages[ids[i]];
+            if (!image) {
+                continue;
+            }
+            var scale = Math.min(
+                width / image.naturalWidth,
+                height / image.naturalHeight
+            );
+            var newWidth = Math.max(1, Math.round(image.naturalWidth * scale));
+            var newHeight = Math.max(1, Math.round(image.naturalHeight * scale));
+            overlayContext.drawImage(image,
+                Math.floor((width - newWidth) / 2),
+                Math.floor((height - newHeight) / 2),
+                newWidth, newHeight);
+        }
     }
 
     /* --- Webcam wrapper and stream attachment --------------------------- */
@@ -194,6 +325,8 @@
      */
     function showNoWebcam() {
         video.className = video.className + ' is-hidden';
+        // Without a camera the capture button can never work: hide it too.
+        captureButton.className = captureButton.className + ' is-hidden';
         if (!isSecureOrigin()) {
             setText(message,
                 'The webcam is only available on a secure origin. Open the ' +
@@ -207,11 +340,50 @@
     getWebcam(function (stream) {
         attachStream(stream);
         hasStream = true;
-        // The overlay may already be selected: the preview can start now.
-        startOverlayPreview();
+        // Stickers or a chosen file may already be there: the preview can
+        // start now.
+        refreshPreview();
     }, function () {
         showNoWebcam();
     });
+
+    /* --- Chosen upload file ---------------------------------------------- */
+
+    /**
+     * React to a picture being chosen in the upload input: decode it with a
+     * FileReader so the preview can show it (with the selected stickers)
+     * in place of the webcam frame. The server still validates the real
+     * upload; this is only a preview.
+     */
+    function onFileChange() {
+        fileImage = null;
+        refreshCaptureButton();
+        if (!fileInput.files || fileInput.files.length === 0) {
+            refreshPreview();
+            return;
+        }
+
+        var reader = new FileReader();
+        reader.onload = function () {
+            var image = new Image();
+            image.onload = function () {
+                fileImage = image;
+                // Without a webcam the video box is hidden; it must be
+                // visible again so the preview canvas has a frame to sit in.
+                video.className = video.className.replace(' is-hidden', '');
+                refreshPreview();
+                refreshCaptureButton();
+            };
+            image.onerror = function () {
+                setStatus('This file cannot be previewed, but it will still be sent to the server.');
+                refreshPreview();
+            };
+            image.src = reader.result;
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+    }
+
+    fileInput.addEventListener('change', onFileChange);
 
     /* --- Capture and upload --------------------------------------------- */
 
@@ -245,7 +417,8 @@
     }
 
     /**
-     * Send a picture (the webcam blob) and the overlay id to the server.
+     * Send a picture (the webcam blob) and every selected sticker id to the
+     * server. An empty list is valid: the picture is saved without stickers.
      *
      * Transport: XMLHttpRequest, not fetch. In Firefox 41 the capture with
      * fetch + FormData + Blob never completes (COMPATIBILITY.md entry 5);
@@ -255,15 +428,17 @@
      * of the no-JavaScript redirect.
      *
      * @param {Blob} blob The captured frame as a PNG blob.
-     * @param {string} overlayId The selected overlay id.
+     * @param {string[]} overlayIds The selected sticker ids.
      * @param {Function} onSuccess Called with the parsed JSON response.
      * @param {Function} onFailure Called with the server's error message,
      *                             or null when there is none.
      */
-    function sendPicture(blob, overlayId, onSuccess, onFailure) {
+    function sendPicture(blob, overlayIds, onSuccess, onFailure) {
         var data = new FormData();
         data.append('photo', blob, 'capture.png');
-        data.append('overlay', overlayId);
+        for (var i = 0; i < overlayIds.length; i = i + 1) {
+            data.append('overlay[]', overlayIds[i]);
+        }
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', form.getAttribute('action'), true);
@@ -358,12 +533,20 @@
     }
 
     /**
-     * Handle a click on the capture button: take the frame, send it, and
-     * either show the new thumbnail or the server's error message.
+     * Handle a click on the capture button. While a local picture is
+     * chosen, the button is the "Back to camera" switch: drop the local
+     * picture and return to the webcam preview. In camera mode it takes
+     * the frame, sends it with the selected stickers (possibly none), and
+     * either shows the new thumbnail or the server's error message.
      */
     function handleCapture() {
-        var overlay = selectedOverlay();
-        if (!overlay) {
+        if (fileImage !== null) {
+            fileImage = null;
+            // Clear the input, otherwise picking the same file again would
+            // not fire a change event (the value would not change).
+            fileInput.value = '';
+            refreshPreview();
+            refreshCaptureButton();
             return;
         }
         if (!hasStream || !video.videoWidth) {
@@ -373,7 +556,7 @@
 
         setStatus('Saving your picture...');
         var blob = dataUrlToBlob(captureFrame());
-        sendPicture(blob, overlay.value, function (data) {
+        sendPicture(blob, selectedIds(), function (data) {
             addThumbnail(data.id, data.url);
             setStatus('Picture saved.');
         }, function (errorMessage) {

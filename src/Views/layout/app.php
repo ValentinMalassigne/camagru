@@ -12,7 +12,7 @@
     <title><?= e($title ?? 'Camagru') ?></title>
     <?php if (!empty($headMeta)) { echo $headMeta; } ?>
     <link rel="icon" type="image/png" href="/favicon.png">
-    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/app.css?v=3">
 </head>
 <body>
     <header class="site-header">
@@ -50,9 +50,9 @@
 
     <footer class="site-footer">
         <p>
-            Camagru &mdash; &eacute;cole 42 project &mdash;
+            Camagru - 42 project -
             <a class="site-footer__link" href="https://github.com/ValentinMalassigne/">GitHub</a>
-            &mdash; Made by <a class="site-footer__link" href="https://valentinmalassigne.fr/">Valentin Malassign&eacute;</a>
+            - Made by <a class="site-footer__link" href="https://valentinmalassigne.fr/">Valentin Malassign&eacute;</a>
         </p>
     </footer>
 </body>

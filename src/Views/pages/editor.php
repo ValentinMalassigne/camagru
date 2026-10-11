@@ -1,10 +1,12 @@
 <?php
-// Editor page (spec section 4.4): main section (webcam preview, overlay
+// Editor page (spec section 4.4): main section (webcam preview, sticker
 // list, capture button and upload form — the webcam and the upload are both
 // always available) and side section (thumbnails of all the current user's
 // previous pictures, newest first, each with a delete button). Markup only;
 // every value is escaped with e(). The capture button needs JavaScript, the
-// upload form works without it.
+// upload form works without it. Stickers are optional checkboxes: the user
+// may pick 0 to all of them; the capture button needs at least one, the
+// upload always works (the server accepts a picture without stickers).
 /** @var string $title */
 /** @var array<int, string> $overlays Overlay id => PNG filename. */
 /** @var array<int, array<string, mixed>> $images The user's pictures, newest first. */
@@ -17,9 +19,9 @@
         <section class="editor__main">
             <div class="editor__preview">
                 <video id="editor-video" class="editor__video" autoplay muted></video>
-                <!-- Live overlay preview (bonus): editor.js draws the selected
-                     overlay over the video frames here, mirroring the server's
-                     compositing. Hidden until an overlay is selected. -->
+                <!-- Live sticker preview (bonus): editor.js draws the selected
+                     stickers over the video frames here, mirroring the
+                     server's compositing. Hidden until a sticker is selected. -->
                 <canvas id="editor-overlay-canvas" class="editor__overlay-canvas is-hidden" width="640" height="480"></canvas>
                 <p id="editor-message" class="editor__message is-hidden">
                     The webcam is not available (or permission was refused).
@@ -31,30 +33,31 @@
                 <input type="hidden" name="_csrf_token" value="<?= e($csrfToken) ?>">
 
                 <fieldset class="editor-overlays">
-                    <legend class="editor-overlays__legend">Choose an overlay</legend>
+                    <legend class="editor-overlays__legend">Add stickers (optional)</legend>
                     <ul class="editor-overlays__list">
                         <?php foreach ($overlays as $id => $filename): ?>
                             <li class="editor-overlays__item">
                                 <label class="editor-overlays__label">
-                                    <input class="editor-overlays__radio" type="radio" name="overlay"
-                                           value="<?= (int) $id ?>" data-overlay-src="/assets/overlays/<?= e($filename) ?>" required>
+                                    <input class="editor-overlays__choice" type="checkbox" name="overlay[]"
+                                           value="<?= (int) $id ?>" data-overlay-src="/assets/overlays/<?= e($filename) ?>">
                                     <img class="editor-overlays__img" src="/assets/overlays/<?= e($filename) ?>"
-                                         alt="Overlay: <?= e(basename((string) $filename, '.png')) ?>">
+                                         alt="Sticker: <?= e(basename((string) $filename, '.png')) ?>">
                                 </label>
                             </li>
                         <?php endforeach; ?>
                     </ul>
+                    <p class="editor-overlays__hint">Pick none, some or all. Each sticker is centered on the picture; taking a photo needs at least one, an upload works without.</p>
                 </fieldset>
 
                 <div class="editor-upload">
-                    <label class="editor-upload__label" for="editor-file">Or upload a picture (PNG or JPEG, 5 MB max)</label>
+                    <label class="editor-upload__label" for="editor-file">Or upload a picture (PNG or JPEG, 10 MB max)</label>
                     <input class="editor-upload__input" type="file" id="editor-file" name="photo"
                            accept="image/png,image/jpeg" required>
-                    <button id="editor-upload-submit" class="editor-submit" type="submit">Upload</button>
+                    <button id="editor-upload-submit" class="editor-submit" type="submit">Save editing</button>
                 </div>
             </form>
 
-            <button id="editor-capture" class="editor-submit" type="button">Take a photo</button>
+            <button id="editor-capture" class="editor-submit" type="button" disabled>Take a photo</button>
             <p id="editor-status" class="editor__status"></p>
         </section>
 
@@ -83,5 +86,5 @@
     <!-- Versioned include: /assets/ is cached for 1 hour, so every change to
          editor.js MUST bump this version or the browsers keep the old file
          (COMPATIBILITY.md entry 5 was masked this way during testing). -->
-    <script src="/assets/js/editor.js?v=4"></script>
+    <script src="/assets/js/editor.js?v=10"></script>
 </section>

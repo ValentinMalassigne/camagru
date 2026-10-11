@@ -83,6 +83,30 @@ class Request
     }
 
     /**
+     * Get a POST parameter that may appear several times (a group of
+     * checkboxes sent as "name[]"). Every value is cast to a string; a
+     * single (non-array) value becomes a one-element list, so both field
+     * styles produce the same shape.
+     *
+     * @return array<int, string> The values in submission order.
+     */
+    public function postList(string $key): array
+    {
+        $value = $this->post[$key] ?? null;
+        if ($value === null) {
+            return [];
+        }
+        if (!is_array($value)) {
+            return [(string) $value];
+        }
+        $list = [];
+        foreach ($value as $item) {
+            $list[] = (string) $item;
+        }
+        return $list;
+    }
+
+    /**
      * Get an uploaded file entry from $_FILES, or null.
      *
      * @return array<string, mixed>|null

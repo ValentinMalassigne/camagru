@@ -120,12 +120,16 @@ Rules:
 ### 4.4 Editor (authenticated only)
 - Unauthenticated access redirects to login with a friendly message.
 - Layout: main section + side section.
-  - **Main section:** webcam preview, overlay list, capture button, **and** a file upload form. The webcam and the upload are both always available; the user picks either one.
+  - **Main section:** webcam preview, sticker list (optional checkboxes), capture button, **and** a file upload form. The webcam and the upload are both always available; the user picks either one.
   - **Side section:** thumbnails of **all the previous pictures taken by the current user** (only their own, newest first), each with a delete button.
-- **The capture button and the upload submit are disabled until an overlay is selected.**
+- **Stickers are optional:** the user may apply 0 to all available stickers; each one is
+  scaled to fit the picture and centered on it, stacked in sorted id order (higher
+  ids above lower ones; the artwork decides how a stack looks).
+  The capture button requires at least one sticker; the upload submit is
+  always available (a picture without stickers is valid).
 - If there is no webcam, permission is refused or `getUserMedia` is unavailable, a friendly message replaces the preview and the upload keeps working.
 - The webcam frame is drawn to a canvas, exported with `canvas.toDataURL('image/png')`, converted to a Blob and sent as `FormData` with the overlay **id** (`canvas.toBlob` is not used, see section 11). Uploaded files go through the **same server pipeline**.
-- **Compositing happens on the server** (GD): resize/scale the overlay to the base image, alpha-blend, save as PNG.
+- **Compositing happens on the server** (GD): resize/scale each selected sticker, alpha-blend it centered, save as PNG.
 - Users can delete **only their own** images (server-side ownership check, POST + CSRF). Deleting removes the file and DB rows (likes/comments cascade).
 
 ## 5. Routes
@@ -192,10 +196,11 @@ PDO settings: `ERRMODE_EXCEPTION`, `ATTR_EMULATE_PREPARES = false`, `FETCH_ASSOC
 
 - **Overlays:** at least 4 PNGs **with alpha channel** in `public/assets/overlays/`, listed in `config/overlays.php` (`id => filename`). The client sends only the **id**; the server maps it to a file (never accept paths: path-traversal protection). A missing or unknown id is rejected, for both the webcam capture and the upload.
 - **Upload/capture pipeline (single code path):**
-  1. Check size (max 5 MB) and upload errors.
+  1. Check size (max 10 MB) and upload errors.
   2. Detect real type with `finfo` (allow only `image/png`, `image/jpeg`) and `getimagesize`; cap dimensions.
   3. Decode with GD (`imagecreatefromstring`), **re-encode** to PNG (strips metadata and any embedded payload).
-  4. Composite overlay (`imagealphablending`, `imagesavealpha`, `imagecopyresampled`/`imagecopy`).
+  4. Composite every selected sticker (`imagealphablending`, `imagesavealpha`,
+     `imagecopyresampled`/`imagecopy`); 0 stickers is valid (plain re-encode).
   5. Save under a random filename (`bin2hex(random_bytes(16)).png`) in the uploads volume; store filename only.
 - Uploads are served by nginx at `/uploads/` from a volume mounted **read-only** in nginx; **PHP execution is disabled** there.
 - Body/upload limits aligned: nginx `client_max_body_size`, PHP `upload_max_filesize` and `post_max_size`.
@@ -259,7 +264,7 @@ Once `.env` exists, `docker compose up --build` from a fresh clone must work, wi
 ## 11. Frontend notes
 
 - Editor JS gets the webcam through the small wrapper described in the compatibility rules below (never by calling `getUserMedia` directly), draws the video to a `<canvas>`, sends the frame with `fetch` + `FormData`. The upload form is always visible next to the webcam. Handle refusal/no-webcam gracefully by showing a message in place of the preview (no console noise for handled cases).
-- Overlay selection enables the capture button and the upload submit. Optional live overlay preview is a bonus (server still produces the final image).
+- Stickers are optional (0 to all, checkbox list). Optional live sticker preview is a bonus (server still produces the final image).
 - CSS lives in `public/assets/css/app.css`: plain hand-written CSS, semantic HTML, label all inputs, keep the layout usable at 320 px width.
 - **Favicon:** `public/favicon.ico` exists and is referenced by `<link rel="icon">` in the layout head, so the browser console never shows a 404 for it.
 
@@ -293,7 +298,7 @@ AJAXify likes/comments and editor actions; infinite pagination; live overlay pre
 - [ ] Zero console output (browser and containers) during normal use; only unavoidable startup lines, each listed in `NOTES.md`
 - [ ] Favicon served, no 404 in the browser console
 - [ ] Register → email confirmation → login → reset password → change username/email/password → logout on every page
-- [ ] Editor is auth-only; capture button and upload disabled until an overlay is chosen; both webcam capture and file upload available and working; sidebar shows all the current user's previous pictures
+- [ ] Editor is auth-only; stickers optional (0 to all, centered); webcam capture needs at least one sticker, upload does not; sidebar shows all the current user's previous pictures
 - [ ] Composition done server side with GD; alpha respected
 - [ ] Gallery public, paginated (6/page), ordered by date; like/comment for logged-in users only
 - [ ] Comment notification email sent by default, opt-out in account settings; self-comment notification option (default off) works
