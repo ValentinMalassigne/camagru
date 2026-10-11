@@ -32,10 +32,11 @@ class AuthController
     private const DUMMY_HASH = '$2y$10$BVisZbBj.vrTqLF41ZmV/.qfLFCevzcnFzqez20AC.yES7o5KMvMq';
 
     /**
-     * A logged-in user has nothing to do on the register and login pages:
-     * the GET forms and their POST handlers send them home with a friendly
-     * message, so a stale form submission cannot log in over, or register
-     * an account next to, an existing session.
+     * A logged-in user has nothing to do on the register, login and
+     * password-reset pages: the GET forms and their POST handlers send
+     * them home with a friendly message, so a stale form submission
+     * cannot log in over, or register an account next to, an existing
+     * session.
      *
      * @return Response|null The home redirect, or null to continue.
      */
@@ -277,6 +278,10 @@ class AuthController
      */
     public function forgotPasswordForm(Request $request, array $params = []): Response
     {
+        $redirect = $this->redirectIfLoggedIn();
+        if ($redirect !== null) {
+            return $redirect;
+        }
         $html = View::renderPage('pages/forgot_password.php', [
             'title'  => 'Forgot password',
             'errors' => [],
@@ -294,6 +299,11 @@ class AuthController
      */
     public function forgotPassword(Request $request, array $params = []): Response
     {
+        $redirect = $this->redirectIfLoggedIn();
+        if ($redirect !== null) {
+            return $redirect;
+        }
+
         if (!Csrf::verify($request)) {
             Session::flash('error', 'Your session expired. Please try again.');
             return Response::redirect('/forgot-password');
@@ -340,6 +350,10 @@ class AuthController
      */
     public function resetPasswordForm(Request $request, array $params = []): Response
     {
+        $redirect = $this->redirectIfLoggedIn();
+        if ($redirect !== null) {
+            return $redirect;
+        }
         $token = $request->query('token', '');
         $reset = $this->findValidReset($token);
         if ($reset === null) {
@@ -364,6 +378,11 @@ class AuthController
      */
     public function resetPassword(Request $request, array $params = []): Response
     {
+        $redirect = $this->redirectIfLoggedIn();
+        if ($redirect !== null) {
+            return $redirect;
+        }
+
         if (!Csrf::verify($request)) {
             Session::flash('error', 'Your session expired. Please try again.');
             return Response::redirect('/forgot-password');
