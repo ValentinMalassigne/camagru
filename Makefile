@@ -24,7 +24,7 @@ fclean:
 	docker compose down -v --rmi local
 
 logs:
-	docker compose logs
+	docker compose logs -f
 
 setup:
 	if [ ! -f .env ]; then \
