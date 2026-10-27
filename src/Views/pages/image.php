@@ -23,7 +23,7 @@
         <img class="image-view__img" src="/uploads/<?= e($image['filename']) ?>"
              alt="Picture by <?= e((string) $image['username']) ?>">
         <figcaption class="image-view__caption">
-            by <?= e((string) $image['username']) ?> &mdash; <?= e($date) ?>
+            by <?= e((string) $image['username']) ?> - <?= e($date) ?>
         </figcaption>
     </figure>
 
